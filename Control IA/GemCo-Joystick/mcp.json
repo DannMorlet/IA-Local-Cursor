@@ -1,0 +1,146 @@
+{
+  "mcpServers": {
+    "cursor": {
+      "command": "C:\\Python315\\python.exe",
+      "args": [
+        "-X",
+        "utf8",
+        "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\cursor-mcp\\server.py"
+      ],
+      "cwd": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\cursor-mcp",
+      "env": {
+        "PYTHONUTF8": "1",
+        "CURSOR_LMSTUDIO_URL": "http://127.0.0.1:1234/v1",
+        "CURSOR_MAESTRO_URL": "http://127.0.0.1:1234/v1",
+        "LM_STUDIO_BASE_URL": "http://127.0.0.1:1234",
+        "MATICK_STUDIO_BASE_URL": "http://127.0.0.1:1234",
+        "MATICK_STUDIO_URL": "http://127.0.0.1:1234",
+        "LMSTUDIO_API": "http://127.0.0.1:1234",
+        "MATICK_ECHO_CONFIG": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\privado\\echo.json",
+        "CURSOR_AGENTES_CONC": "1"
+      }
+    },
+    "matick-echo": {
+      "command": "C:\\Python315\\python.exe",
+      "args": [
+        "-X",
+        "utf8",
+        "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\matick-echo-mcp\\server.py"
+      ],
+      "cwd": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\matick-echo-mcp",
+      "env": {
+        "PYTHONUTF8": "1",
+        "CURSOR_LMSTUDIO_URL": "http://127.0.0.1:1234/v1",
+        "CURSOR_MAESTRO_URL": "http://127.0.0.1:1234/v1",
+        "LM_STUDIO_BASE_URL": "http://127.0.0.1:1234",
+        "MATICK_STUDIO_BASE_URL": "http://127.0.0.1:1234",
+        "MATICK_STUDIO_URL": "http://127.0.0.1:1234",
+        "LMSTUDIO_API": "http://127.0.0.1:1234",
+        "MATICK_ECHO_CONFIG": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\privado\\echo.json",
+        "CURSOR_AGENTES_CONC": "1"
+      }
+    },
+    "velocidad": {
+      "command": "C:\\Python315\\python.exe",
+      "args": [
+        "-X",
+        "utf8",
+        "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\velocidad-mcp\\server.py"
+      ],
+      "cwd": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\velocidad-mcp",
+      "env": {
+        "PYTHONUTF8": "1",
+        "CURSOR_LMSTUDIO_URL": "http://127.0.0.1:1234/v1",
+        "CURSOR_MAESTRO_URL": "http://127.0.0.1:1234/v1",
+        "LM_STUDIO_BASE_URL": "http://127.0.0.1:1234",
+        "MATICK_STUDIO_BASE_URL": "http://127.0.0.1:1234",
+        "MATICK_STUDIO_URL": "http://127.0.0.1:1234",
+        "LMSTUDIO_API": "http://127.0.0.1:1234",
+        "MATICK_ECHO_CONFIG": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\privado\\echo.json",
+        "CURSOR_AGENTES_CONC": "1"
+      }
+    },
+    "refuerzo": {
+      "command": "C:\\Python315\\python.exe",
+      "args": [
+        "-X",
+        "utf8",
+        "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\refuerzo-mcp\\server.py"
+      ],
+      "cwd": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\refuerzo-mcp",
+      "env": {
+        "PYTHONUTF8": "1",
+        "CURSOR_LMSTUDIO_URL": "http://127.0.0.1:1234/v1",
+        "CURSOR_MAESTRO_URL": "http://127.0.0.1:1234/v1",
+        "LM_STUDIO_BASE_URL": "http://127.0.0.1:1234",
+        "MATICK_STUDIO_BASE_URL": "http://127.0.0.1:1234",
+        "MATICK_STUDIO_URL": "http://127.0.0.1:1234",
+        "LMSTUDIO_API": "http://127.0.0.1:1234",
+        "MATICK_ECHO_CONFIG": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\privado\\echo.json",
+        "CURSOR_AGENTES_CONC": "1"
+      }
+    },
+    "agente-enrutador": {
+      "command": "C:\\Python315\\python.exe",
+      "args": [
+        "-X",
+        "utf8",
+        "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\cursor-mcp\\server.py"
+      ],
+      "cwd": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\cursor-mcp",
+      "env": {
+        "PYTHONUTF8": "1",
+        "CURSOR_LMSTUDIO_URL": "http://127.0.0.1:1234/v1",
+        "CURSOR_MAESTRO_URL": "http://127.0.0.1:1234/v1",
+        "LM_STUDIO_BASE_URL": "http://127.0.0.1:1234",
+        "MATICK_STUDIO_BASE_URL": "http://127.0.0.1:1234",
+        "MATICK_STUDIO_URL": "http://127.0.0.1:1234",
+        "LMSTUDIO_API": "http://127.0.0.1:1234",
+        "MATICK_ECHO_CONFIG": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\privado\\echo.json",
+        "CURSOR_AGENTES_CONC": "1",
+        "CURSOR_PERFIL": "enrutador",
+        "CURSOR_SERVER_NAME": "agente-enrutador"
+      }
+    },
+    "mascota.mcp": {
+      "command": "C:\\Python315\\python.exe",
+      "args": [
+        "-X",
+        "utf8",
+        "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\mascota-mcp\\server.py"
+      ],
+      "cwd": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\mascota-mcp",
+      "env": {
+        "PYTHONUTF8": "1",
+        "CURSOR_LMSTUDIO_URL": "http://127.0.0.1:1234/v1",
+        "CURSOR_MAESTRO_URL": "http://127.0.0.1:1234/v1",
+        "CURSOR_AGENTES_CONC": "1",
+        "MASCOTA_VERSION": "0.1.1"
+      }
+    },
+    "chat_server.mcp": {
+      "command": "C:\\Python315\\python.exe",
+      "args": [
+        "-X",
+        "utf8",
+        "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\mascota-mcp\\chat_server.py"
+      ],
+      "cwd": "C:\\Download\\LM Studio mcp y archivos para dotar IA\\componentes\\mascota-mcp",
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    },
+    "gemco-joystick": {
+      "command": "C:\\Python315\\python.exe",
+      "args": [
+        "-X",
+        "utf8",
+        "C:\\Program Files\\LM Studio\\Habilidades\\GemCo-Joystick\\server.py"
+      ],
+      "cwd": "C:\\Program Files\\LM Studio\\Habilidades\\GemCo-Joystick",
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}
