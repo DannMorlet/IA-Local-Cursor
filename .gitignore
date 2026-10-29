@@ -1,3 +1,32 @@
+# Compilados, cachés y entorno local
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.env
+.env.*
+!.env.example
+*.log
+*.sqlite3
+.manguito/
+workspace/
+# Pesos y datos de entrenamientos: mantener fuera de Git
+*.safetensors
+*.gguf
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.bin
+*.tensorrt
+*.engine
+*.mp4
+*.mkv
+*.mov
 *.i
 *.ii
 *.gpu
