@@ -1,0 +1,24 @@
+name: GemCo Joystick MCP - pruebas sin driver
+on:
+  push:
+    paths:
+      - 'Control IA/GemCo-Joystick/**'
+      - '.github/workflows/gemco-joystick-ci.yml'
+  workflow_dispatch:
+jobs:
+  contrato:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Python syntax
+        run: |
+          python -m py_compile "Control IA/GemCo-Joystick/server.py" "Control IA/GemCo-Joystick/panel.py" "Control IA/GemCo-Joystick/learning.py" "Control IA/GemCo-Joystick/tests/test_mcp.py"
+      - name: Verify MCP JSON
+        run: |
+          python -c "import json; p=json.load(open('Control IA/GemCo-Joystick/mcp.json',encoding='utf8')); assert len(p['mcpServers'])==8; assert 'gemco-joystick' in p['mcpServers']"
+      - name: Run headless MCP tests
+        run: |
+          python -m unittest discover -s "Control IA/GemCo-Joystick/tests" -v
