@@ -2,8 +2,10 @@
 
 Uso:
   python -m matick_cloud.client send matick-chat mensaje '{"texto":"hola"}'
+  python -m matick_cloud.client direct matick-chat matick-reloj aviso '{"texto":"revisar tarea"}'
   python -m matick_cloud.client inbox --after 0
   python -m matick_cloud.client status
+  python -m matick_cloud.client routes
 """
 from __future__ import annotations
 
@@ -37,10 +39,15 @@ def main() -> int:
     send.add_argument("target")
     send.add_argument("kind")
     send.add_argument("payload_json", help="Objeto JSON de datos")
+    direct = commands.add_parser("direct", help="Dirigir el mismo evento a varios roles explícitos")
+    direct.add_argument("targets", nargs="+", help="Roles destino; no admite comodines")
+    direct.add_argument("kind")
+    direct.add_argument("payload_json", help="Objeto JSON de datos")
     inbox = commands.add_parser("inbox", help="Leer eventos para el rol del token")
     inbox.add_argument("--after", type=int, default=0)
     inbox.add_argument("--limit", type=int, default=50)
     commands.add_parser("status", help="Estado de la identidad autenticada")
+    commands.add_parser("routes", help="Destinos permitidos para el rol autenticado")
     args = parser.parse_args()
     try:
         if args.command == "send":
@@ -50,12 +57,21 @@ def main() -> int:
             result = request("POST", "/v1/events", {
                 "target": args.target, "kind": args.kind, "payload": data,
             })
+        elif args.command == "direct":
+            data = json.loads(args.payload_json)
+            if not isinstance(data, dict):
+                raise ValueError("payload_json debe ser un objeto JSON")
+            result = request("POST", "/v1/direct", {
+                "targets": args.targets, "kind": args.kind, "payload": data,
+            })
         elif args.command == "inbox":
             result = request("GET", "/v1/events?" + urlencode({
                 "after": args.after, "limit": args.limit,
             }))
-        else:
+        elif args.command == "status":
             result = request("GET", "/v1/status")
+        else:
+            result = request("GET", "/v1/routes")
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return 0
     except (ValueError, HTTPError, URLError) as exc:
@@ -65,3 +81,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

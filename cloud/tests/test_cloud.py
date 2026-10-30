@@ -17,10 +17,8 @@ class CloudTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.db = Path(self.temp.name) / "events.db"
-        self.tokens = {
-            "matick-studio-lm": "studio-token-0123456789",
-            "matick-chat": "chat-token-01234567890",
-        }
+        from matick_cloud.server import ROLES
+        self.tokens = {role: role + "-token-0123456789" for role in ROLES}
         self.server = MatickHTTPServer(("127.0.0.1", 0), EventStore(self.db), self.tokens)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -75,6 +73,79 @@ class CloudTests(unittest.TestCase):
         _, cursor = self.call("/v1/events?after=%d" % replied["events"][0]["id"], "matick-studio-lm")
         self.assertEqual(cursor["events"], [])
 
+    def test_route_policy_and_status_surface(self) -> None:
+        _, routes = self.call("/v1/routes", "matick-reloj")
+        self.assertEqual(routes["allowed_targets"], ["chatgpt", "matick-studio-lm"])
+        self.assertFalse(routes["can_fanout"])
+
+        with self.assertRaises(HTTPError) as denied_peer:
+            self.call("/v1/events", "matick-reloj", {
+                "target": "matick-codex", "kind": "mensaje", "payload": {},
+            })
+        self.assertEqual(denied_peer.exception.code, 403)
+
+        status, receipt = self.call("/v1/events", "matick-studio-lm", {
+            "target": "matick-pet", "kind": "status.snapshot",
+            "payload": {
+                "component": "matick-studio-lm", "state": "working",
+                "updated_at": "2026-10-30T17:00:00Z", "progress_pct": 20,
+            },
+        })
+        self.assertEqual(status, 201)
+        self.assertEqual(receipt["target"], "matick-pet")
+        _, pet_inbox = self.call("/v1/events?after=0", "matick-pet")
+        self.assertEqual(pet_inbox["events"][0]["kind"], "status.snapshot")
+
+        with self.assertRaises(HTTPError) as denied_pet_message:
+            self.call("/v1/events", "matick-chat", {
+                "target": "matick-pet", "kind": "mensaje", "payload": {},
+            })
+        self.assertEqual(denied_pet_message.exception.code, 403)
+        with self.assertRaises(HTTPError) as denied_pet_write:
+            self.call("/v1/events", "matick-pet", {
+                "target": "matick-studio-lm", "kind": "status.snapshot", "payload": {},
+            })
+        self.assertEqual(denied_pet_write.exception.code, 403)
+
+        with self.assertRaises(HTTPError) as wrong_status_source:
+            self.call("/v1/events", "chatgpt", {
+                "target": "matick-pet", "kind": "status.snapshot", "payload": {},
+            })
+        self.assertEqual(wrong_status_source.exception.code, 403)
+        with self.assertRaises(HTTPError) as private_status_data:
+            self.call("/v1/events", "matick-studio-lm", {
+                "target": "matick-pet", "kind": "status.snapshot",
+                "payload": {
+                    "component": "matick-studio-lm", "state": "working",
+                    "updated_at": "2026-10-30T17:00:00Z", "pulso": 80,
+                },
+            })
+        self.assertEqual(private_status_data.exception.code, 400)
+
+    def test_director_fanout_is_explicit_and_authenticated(self) -> None:
+        status, receipt = self.call("/v1/direct", "matick-studio-lm", {
+            "targets": ["chatgpt", "matick-chat", "matick-codex"],
+            "kind": "tarea.asignada", "payload": {"id": "t-7"},
+        })
+        self.assertEqual(status, 201)
+        self.assertEqual([item["target"] for item in receipt["deliveries"]],
+                         ["chatgpt", "matick-chat", "matick-codex"])
+        for role in ("chatgpt", "matick-chat", "matick-codex"):
+            _, inbox = self.call("/v1/events?after=0", role)
+            self.assertEqual(inbox["events"][0]["payload"]["id"], "t-7")
+
+        with self.assertRaises(HTTPError) as denied:
+            self.call("/v1/direct", "matick-chat", {
+                "targets": ["alexa", "matick-reloj"], "kind": "aviso", "payload": {},
+            })
+        self.assertEqual(denied.exception.code, 403)
+
+        with self.assertRaises(HTTPError) as no_wildcard:
+            self.call("/v1/direct", "matick-studio-lm", {
+                "targets": ["chatgpt", "chatgpt"], "kind": "aviso", "payload": {},
+            })
+        self.assertEqual(no_wildcard.exception.code, 400)
+
     def test_validations_and_persistence(self) -> None:
         with self.assertRaises(HTTPError) as denied:
             self.call("/v1/events", "matick-chat", {
@@ -102,3 +173,4 @@ class CloudTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

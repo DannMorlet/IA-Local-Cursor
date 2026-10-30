@@ -368,14 +368,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     CreateLabel(window, instance, 4, L"DirectX 12  [activo]", 30, 206, 220, 30);
     CreateLabel(window, instance, 5, L"GPU / WINDOWS 11", 30, 249, 225, 30);
     CreateLabel(window, instance, 6, L"Cloud / API", 30, 292, 220, 30);
-    CreateLabel(window, instance, 100, L"MATICK STUDIO LM  /  CLOUD", 321, 144, 700, 35, 26);
+    CreateLabel(window, instance, 100, L"MATICK STUDIO LM  /  DIRECCIÓN", 321, 144, 700, 35, 26);
     gStatus = CreateLabel(window, instance, 101, L"API cloud: verificando...", 321, 204, 650, 34, 21);
     CreateLabel(window, instance, 102, L"Interfaz: Windows nativo + Direct3D 12", 321, 272, 680, 30);
-    CreateLabel(window, instance, 103, L"Mensajería y autenticación: disponibles en cloud API", 321, 322, 750, 30);
-    CreateLabel(window, instance, 104, L"ChatGPT / Codex / Reloj / Alexa: conectores pendientes", 321, 372, 770, 30);
-    CreateLabel(window, instance, 105, L"Modelo IA cloud: pendiente de implementar", 321, 422, 730, 30);
-    CreateLabel(window, instance, 106, L"Proyecto independiente de LM Studio", 321, 577, 690, 31, 20);
-    CreateLabel(window, instance, 107, L"Estado inicial: MVP - Sin servicios de terceros conectados", 321, 627, 760, 28, 17);
+    CreateLabel(window, instance, 103, L"Direccion cloud: rutas autenticadas por componente", 321, 322, 750, 30);
+    CreateLabel(window, instance, 104, L"ChatGPT / Matick Chat / Codex / Reloj / Alexa", 321, 372, 770, 30);
+    CreateLabel(window, instance, 105, L"Adaptadores externos: pendientes de conectar", 321, 422, 730, 30);
+    CreateLabel(window, instance, 106, L"Matick Pet: receptor de estatus de solo lectura", 321, 577, 690, 31, 20);
+    CreateLabel(window, instance, 107, L"El bus dirige eventos; no ejecuta acciones por si solo", 321, 627, 760, 28, 17);
 
     ShowWindow(window, show);
     UpdateWindow(window);
@@ -405,3 +405,4 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     DeleteObject(gCardBrush);
     return static_cast<int>(message.wParam);
 }
+

@@ -2,7 +2,7 @@
 
 **Repositorio oficial del nuevo proyecto Matick Studio LM en la nube.** Es un producto independiente de LM Studio y no requiere instalar LM Studio para que su servidor de mensajes funcione.
 
-> Estado: **base técnica inicial (MVP)**. Incluye un bus HTTP con persistencia SQLite y pruebas, un cliente nativo de Windows que inicia DirectX 12 y consulta el estado de la nube, y CI para generar un ejecutable. **No** incluye todavía un modelo desplegado, conexión real con ChatGPT, skill Alexa publicada ni instalador final.
+> Estado: **MVP de dirección v0.2.0**. El bus HTTP/SQLite aplica rutas por rol, permite a Matick Studio LM y ChatGPT dirigir eventos a varios destinatarios explícitos, y ofrece un receptor de estatus de solo lectura para Matick Pet. Los adaptadores de Alexa, ChatGPT, Matick Chat, Matick Codex, Matick Reloj y la mascota siguen pendientes; el cliente Windows aún solo verifica `/health`.
 
 ## Arquitectura
 
@@ -10,7 +10,8 @@
 | --- | --- | --- |
 | `MatickStudioLM.exe` | Windows 11 | Ventana nativa y renderizado **Direct3D 12**. Comprueba conectividad con el servicio cloud. |
 | `matick_cloud` | Servidor / contenedor en la nube | API HTTP y entrega de mensajes entre clientes autenticados. |
-| Matick Codex / Chat / Reloj / Alexa / ChatGPT | Integraciones futuras | Clientes separados con identidad y permisos propios. |
+| ChatGPT / Matick Chat / Matick Codex / Matick Reloj / Alexa | Integraciones futuras | Adaptadores separados con identidad y permisos propios. |
+| Matick Pet | ChatGPT Work | Destino de `status.snapshot`; la actualización automática de la mascota requiere un adaptador pendiente. |
 | Modelo de IA | Infraestructura por elegir | La API **no** infiere ni ejecuta modelos todavía. |
 
 **Importante:** GitHub aloja el código y puede compilar el `.exe` con Actions, pero **no** es un host persistente para el servidor cloud. Para acceso remoto, desplegar el contenedor en un host propio y configurar **HTTPS** con un proxy.
@@ -42,9 +43,12 @@ $env:MATICK_TOKEN="cambia-token-studio"
 python -m matick_cloud.client send matick-chat mensaje '{"texto":"Hola desde Studio"}'
 $env:MATICK_TOKEN="cambia-token-chat"
 python -m matick_cloud.client inbox
+$env:MATICK_TOKEN="cambia-token-studio"
+python -m matick_cloud.client direct chatgpt matick-chat matick-codex tarea.asignada '{"id":"demo-1"}'
+python -m matick_cloud.client routes
 ```
 
-Los tokens de ejemplo son **solo para desarrollo local**. No se deben utilizar tal cual en internet.
+`direct` solo acepta destinos explícitos, hasta siete por envío, y solo desde Matick Studio LM o ChatGPT. `routes` muestra las rutas autorizadas del token actual. Para ejecutar el ejemplo, genera tokens distintos para cada rol que esté activo; los tokens de ejemplo son **solo para desarrollo local** y no se deben utilizar tal cual en internet.
 
 ## Ejecutable Windows DirectX 12
 
@@ -83,14 +87,17 @@ El ejemplo solo enlaza el puerto en localhost. Para producción: reverse proxy T
 
 | Integración | Estado |
 | --- | --- |
-| API de mensajes bidireccionales entre roles permitidos | **Implementada** (polling + SQLite) |
-| Identidad por token de cada rol | **Implementada** (MVP) |
-| Windows `.exe` nativo DirectX 12 | **Código inicial**, falta validar CI |
-| ChatGPT ↔ Matick Studio LM | Contrato preparado, **no conectado** |
-| Alexa / Matick Reloj / Matick Codex / Matick Chat | Contrato preparado, **no conectados** |
+| API de eventos entre roles con matriz de rutas | **Implementada** (polling + SQLite) |
+| Dirección de eventos de varios destinatarios explícitos | **Implementada** para Matick Studio LM y ChatGPT |
+| Snapshot operativo hacia el rol `matick-pet` | **Implementado** en el bus; adaptador de mascota pendiente |
+| Identidad por token distinto para cada rol | **Implementada** (MVP) |
+| Windows `.exe` nativo DirectX 12 | **Código inicial**, verifica `/health`; panel de dirección pendiente |
+| ChatGPT ↔ Matick Studio LM | Contrato y rutas preparados, **adaptador no conectado** |
+| Alexa / Matick Reloj / Matick Codex / Matick Chat | Roles y rutas preparados, **adaptadores no conectados** |
 | Ejecución de modelos IA en la nube | **No implementada** |
 | Despliegue 24/7 y dominio | **No realizado** |
 
 **Migración:** el proyecto anterior `IA-Local-Cursor / GemCo-Joystick` quedó preservado en la rama de respaldo `backup/ia-local-cursor-antes-matick-studio-lm-20261030`. Esta rama `main` comienza de cero, sin reaprovechar el MCP anterior.
 
 Licencia: Apache-2.0 (se conserva el archivo LICENSE del repositorio).
+

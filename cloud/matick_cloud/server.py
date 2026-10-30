@@ -20,10 +20,27 @@ from . import __version__
 
 ROLES = frozenset({
     "matick-studio-lm", "chatgpt", "matick-chat", "matick-codex",
-    "matick-reloj", "alexa", "windows-dx12",
+    "matick-reloj", "alexa", "windows-dx12", "matick-pet",
 })
 MAX_BYTES = 16 * 1024
 MAX_EVENTS = 100
+MAX_FANOUT = 7
+
+# Studio and ChatGPT may route work to any connected service. Other clients
+# report to Studio and ChatGPT; the Work pet is a read-only status surface.
+ROUTE_TARGETS = {
+    "matick-studio-lm": ROLES - {"matick-studio-lm"},
+    "chatgpt": ROLES - {"chatgpt", "matick-pet"},
+    "matick-chat": frozenset({"matick-studio-lm", "chatgpt"}),
+    "matick-codex": frozenset({"matick-studio-lm", "chatgpt"}),
+    "matick-reloj": frozenset({"matick-studio-lm", "chatgpt"}),
+    "alexa": frozenset({"matick-studio-lm", "chatgpt"}),
+    "windows-dx12": frozenset({"matick-studio-lm", "chatgpt"}),
+    "matick-pet": frozenset(),
+}
+DIRECTORS = frozenset({"matick-studio-lm", "chatgpt"})
+STATUS_STATES = frozenset({"idle", "working", "waiting", "error", "offline"})
+STATUS_FIELDS = frozenset({"component", "state", "updated_at", "progress_pct"})
 
 
 class EventStore:
@@ -52,15 +69,20 @@ class EventStore:
         db.row_factory = sqlite3.Row
         return db
 
-    def publish(self, source: str, target: str, kind: str, payload: dict[str, Any]) -> int:
+    def publish_many(
+        self, source: str, targets: list[str], kind: str, payload: dict[str, Any]
+    ) -> list[int]:
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        ids: list[int] = []
         with self._connect() as db:
-            result = db.execute(
-                "INSERT INTO events(created_at,source,target,kind,payload) "
-                "VALUES(?,?,?,?,?)",
-                (now, source, target, kind, json.dumps(payload, ensure_ascii=False)),
-            )
-            return int(result.lastrowid)
+            for target in targets:
+                result = db.execute(
+                    "INSERT INTO events(created_at,source,target,kind,payload) "
+                    "VALUES(?,?,?,?,?)",
+                    (now, source, target, kind, json.dumps(payload, ensure_ascii=False)),
+                )
+                ids.append(int(result.lastrowid))
+        return ids
 
     def inbox(self, actor: str, after: int, limit: int) -> list[dict[str, Any]]:
         with self._connect() as db:
@@ -146,7 +168,7 @@ class MatickHandler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.OK, {"service": "matick-studio-lm-cloud", "version": __version__, "status": "ok"})
             return
 
-        if route.path not in {"/v1/status", "/v1/events"}:
+        if route.path not in {"/v1/status", "/v1/routes", "/v1/events"}:
             self._respond(HTTPStatus.NOT_FOUND, {"error": "Ruta no encontrada"})
             return
 
@@ -159,6 +181,15 @@ class MatickHandler(BaseHTTPRequestHandler):
                 "actor": actor,
                 "transport": "http-polling",
                 "storage": "sqlite",
+            })
+            return
+
+        if route.path == "/v1/routes":
+            self._respond(HTTPStatus.OK, {
+                "actor": actor,
+                "allowed_targets": sorted(ROUTE_TARGETS[actor]),
+                "can_fanout": actor in DIRECTORS,
+                "pet_status_only": actor == "matick-studio-lm",
             })
             return
 
@@ -176,7 +207,8 @@ class MatickHandler(BaseHTTPRequestHandler):
         self._respond(HTTPStatus.OK, {"actor": actor, "events": events})
 
     def do_POST(self) -> None:
-        if urlsplit(self.path).path != "/v1/events":
+        path = urlsplit(self.path).path
+        if path not in {"/v1/events", "/v1/direct"}:
             self._respond(HTTPStatus.NOT_FOUND, {"error": "Ruta no encontrada"})
             return
         actor = self._actor()
@@ -200,18 +232,84 @@ class MatickHandler(BaseHTTPRequestHandler):
         if not isinstance(data, dict):
             self._respond(HTTPStatus.BAD_REQUEST, {"error": "Se espera un objeto JSON"})
             return
-        target = data.get("target")
         kind = data.get("kind")
         payload = data.get("payload")
-        if not isinstance(target, str) or target not in ROLES or not isinstance(kind, str) or not 1 <= len(kind) <= 64 or not isinstance(payload, dict):
-            self._respond(HTTPStatus.BAD_REQUEST, {"error": "target, kind o payload inválidos"})
+        if not isinstance(kind, str) or not 1 <= len(kind) <= 64 or not isinstance(payload, dict):
+            self._respond(HTTPStatus.BAD_REQUEST, {"error": "kind o payload inválidos"})
             return
         if any(ord(c) < 32 for c in kind):
             self._respond(HTTPStatus.BAD_REQUEST, {"error": "kind contiene caracteres de control"})
             return
+        if kind == "status.snapshot" and actor != "matick-studio-lm":
+            self._respond(HTTPStatus.FORBIDDEN, {"error": "solo Matick Studio puede publicar status.snapshot"})
+            return
+        if kind == "status.snapshot":
+            component = payload.get("component")
+            state = payload.get("state")
+            updated_at = payload.get("updated_at")
+            progress = payload.get("progress_pct")
+            try:
+                parsed_time = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+            except (AttributeError, TypeError, ValueError):
+                parsed_time = None
+            if (set(payload) - STATUS_FIELDS or not isinstance(component, str)
+                    or component not in ROLES - {"matick-pet"}
+                    or not isinstance(state, str) or state not in STATUS_STATES
+                    or parsed_time is None
+                    or parsed_time.tzinfo is None
+                    or (progress is not None and
+                        (isinstance(progress, bool) or not isinstance(progress, int)
+                         or not 0 <= progress <= 100))):
+                self._respond(HTTPStatus.BAD_REQUEST, {
+                    "error": "status.snapshot requiere component, state, updated_at UTC y progress_pct opcional (0-100)"
+                })
+                return
 
-        event_id = self.server.store.publish(actor, target, kind, payload)
-        self._respond(HTTPStatus.CREATED, {"id": event_id, "source": actor, "target": target})
+        if path == "/v1/direct":
+            if actor not in DIRECTORS:
+                self._respond(HTTPStatus.FORBIDDEN, {"error": "rol sin permiso de dirección"})
+                return
+            targets = data.get("targets")
+            if (not isinstance(targets, list) or not 1 <= len(targets) <= MAX_FANOUT
+                    or any(not isinstance(target, str) for target in targets)
+                    or len(set(targets)) != len(targets)):
+                self._respond(HTTPStatus.BAD_REQUEST, {"error": "targets debe ser una lista única de 1 a 7 roles"})
+                return
+        else:
+            target = data.get("target")
+            if not isinstance(target, str):
+                self._respond(HTTPStatus.BAD_REQUEST, {"error": "target inválido"})
+                return
+            targets = [target]
+
+        if any(target not in ROLES or target == actor for target in targets):
+            self._respond(HTTPStatus.BAD_REQUEST, {"error": "target desconocido o igual al emisor"})
+            return
+        forbidden = [target for target in targets if target not in ROUTE_TARGETS[actor]]
+        if forbidden:
+            self._respond(HTTPStatus.FORBIDDEN, {
+                "error": "ruta no permitida para este rol",
+                "targets": forbidden,
+            })
+            return
+        if "matick-pet" in targets and kind != "status.snapshot":
+            self._respond(HTTPStatus.FORBIDDEN, {"error": "Matick Pet solo recibe status.snapshot"})
+            return
+
+        ids = self.server.store.publish_many(actor, targets, kind, payload)
+        if path == "/v1/direct":
+            self._respond(HTTPStatus.CREATED, {
+                "source": actor,
+                "kind": kind,
+                "deliveries": [
+                    {"id": event_id, "target": target}
+                    for event_id, target in zip(ids, targets)
+                ],
+            })
+        else:
+            self._respond(HTTPStatus.CREATED, {
+                "id": ids[0], "source": actor, "target": targets[0],
+            })
 
     def log_message(self, format: str, *args: Any) -> None:
         # Log mínimo. Nunca imprimir cabeceras Authorization ni payloads.
@@ -235,3 +333,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

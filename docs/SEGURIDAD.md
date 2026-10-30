@@ -10,6 +10,9 @@ Esta base es un **MVP** y no se debe exponer directamente a internet sin medidas
 6. Añadir rate limits, cuota por identidad, métricas, alertas, rotación de claves, backups, protección CSRF para futuras interfaces web y firewall del host antes de ofrecer servicio público.
 7. Evitar confiar en cadenas `source` suministradas por clientes. La implementación actual deriva el emisor de su token. En producción usar identidad autenticada con scopes.
 8. SQLite es un almacén local para un proceso. Para varias réplicas se requiere un backend central, migraciones y semántica explícita de confirmaciones.
+9. La matriz del MVP deja a `matick-studio-lm` y `chatgpt` dirigir eventos a roles permitidos; los demás roles solo escriben a esos dos directores. `matick-pet` es un receptor de solo lectura. Mantener la matriz explícita al añadir componentes.
+10. `status.snapshot` solo lo publica `matick-studio-lm` y se puede entregar a `matick-pet`. El adaptador de la mascota aún no existe. Publicar únicamente estado de tarea/servicio; excluir pasos, pulso, sueño, credenciales, transcripciones y datos personales.
+11. El rol `alexa` del transporte no verifica por sí mismo las firmas de solicitudes de Alexa. El adaptador Alexa debe validar la solicitud de Skills Kit antes de emitir eventos con su token.
 
 ## Privacidad
 
@@ -18,3 +21,4 @@ La ruta `/health` no debe exponer nombres de usuario ni tokens. `/v1/events` fil
 ## Publicar en GitHub ≠ desplegar a la nube
 
 Un repositorio público permite revisar el código, no ejecuta un servidor 24/7. Los binarios de GitHub Actions se generan solo al disparar workflows y un resultado verde no implica que el servicio esté desplegado.
+
