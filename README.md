@@ -94,3 +94,8 @@ El ejemplo solo enlaza el puerto en localhost. Para producción: reverse proxy T
 **Migración:** el proyecto anterior `IA-Local-Cursor / GemCo-Joystick` quedó preservado en la rama de respaldo `backup/ia-local-cursor-antes-matick-studio-lm-20261030`. Esta rama `main` comienza de cero, sin reaprovechar el MCP anterior.
 
 Licencia: Apache-2.0 (se conserva el archivo LICENSE del repositorio).
+
+
+## Adaptador Alexa recuperado
+
+Se incorporó el adaptador existente de Matick Inteligente desde la rama codex/matick-director-routing-v0.2.0. Consulta alexa/README.md para el contrato del Worker, pruebas y migración conservadora. Esto prepara la integración; no verifica el despliegue, el reconocimiento en Echo ni la generación real de IA. El servidor Python anterior sigue siendo un componente separado.

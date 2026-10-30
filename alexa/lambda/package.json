@@ -1,0 +1,13 @@
+{
+  "name": "matick-inteligente-alexa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Alexa skill en español de México con enrutamiento ChatGPT mediante Cloudflare Worker.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "ask-sdk-core": "^2.14.0"
+  }
+}
