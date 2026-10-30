@@ -52,8 +52,8 @@ function cleanHistory(history) {
   if (!Array.isArray(history)) return [];
   return history
     .filter(item => item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string")
-    .slice(-8)
-    .map(item => ({ role: item.role, content: item.content.slice(0, 1200) }));
+    .slice(-4)
+    .map(item => ({ role: item.role, content: item.content.slice(0, 500) }));
 }
 
 function postChat({ pregunta, historial = [] }, overrideConfig) {

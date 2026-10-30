@@ -13,8 +13,8 @@ test("exige HTTPS y token largo fuera de pruebas localhost", () => {
 test("limita y valida el historial conversacional", () => {
   const history = Array.from({ length: 10 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: "x".repeat(1300) }));
   const clean = cleanHistory(history);
-  assert.equal(clean.length, 8);
-  assert.equal(clean[0].content.length, 1200);
+  assert.equal(clean.length, 4);
+  assert.equal(clean[0].content.length, 500);
 });
 
 test("envía la pregunta al contrato /chat y lee respuesta", async t => {

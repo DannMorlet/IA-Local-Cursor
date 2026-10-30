@@ -6,6 +6,7 @@ const {
   buildWorkSuggestion,
   createWorkSummary,
   escapeSsml,
+  formatQuestionForVoice,
   shouldRecommendCloudWork,
 } = require("./router-policy");
 
@@ -23,4 +24,9 @@ test("limpia contenido para tarjeta y escape SSML", () => {
   assert.match(createWorkSummary("<script>repara</script>", " listo "), /Solicitud original: repara/);
   assert.equal(escapeSsml("A & B < C"), "A &amp; B &lt; C");
   assert.match(buildWorkSuggestion(true), /no puedo abrir/i);
+});
+
+test("prepara respuestas breves para voz y respeta una petición explícita de detalle", () => {
+  assert.match(formatQuestionForVoice("¿Qué es una red neuronal?"), /no más de dos frases/);
+  assert.equal(formatQuestionForVoice("Explícalo paso a paso"), "Explícalo paso a paso");
 });

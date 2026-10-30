@@ -40,6 +40,19 @@ function escapeSsml(value) {
     .replace(/>/g, "&gt;");
 }
 
+function formatQuestionForVoice(question) {
+  const text = cleanText(question, 1200);
+  if (/\b(detallad[oa]|a detalle|paso a paso|explica(?:me)? con profundidad|c[oó]digo completo)\b/i.test(text)) {
+    return text;
+  }
+  return [
+    "Responde en español de México, pensado para escucharse en voz alta.",
+    "Da primero la respuesta principal, en no más de dos frases breves y unas 35 palabras.",
+    "No incluyas bloques de código. Si requiere modificar archivos o ejecutar código, resume el siguiente paso y sugiere ChatGPT Work o Codex.",
+    "Pregunta: " + text,
+  ].join(" ");
+}
+
 function buildWorkSuggestion(explicit) {
   if (explicit) {
     return "No puedo abrir Codex o Work desde el Echo. Para ejecutar esta tarea en la nube, te sugiero continuar en ChatGPT Work o Codex; dejé un resumen en la tarjeta de la app Alexa.";
@@ -51,5 +64,6 @@ module.exports = {
   buildWorkSuggestion,
   createWorkSummary,
   escapeSsml,
+  formatQuestionForVoice,
   shouldRecommendCloudWork,
 };

@@ -21,7 +21,7 @@ const WORKER_URL = process.env.MATICK_WORKER_URL
 const REQUEST_TIMEOUT_MS = 5500;
 const MAX_REQUEST_BYTES = 16 * 1024;
 const MAX_RESPONSE_BYTES = 16 * 1024;
-const MAX_HISTORY_ITEMS = 8;
+const MAX_HISTORY_ITEMS = 4;
 const SESSION_HISTORY_KEY = "matickHistorial";
 
 class WorkerError extends Error {
@@ -55,7 +55,20 @@ function safeHistory(history) {
       && (item.role === "user" || item.role === "assistant")
       && typeof item.content === "string")
     .slice(-MAX_HISTORY_ITEMS)
-    .map(item => ({ role: item.role, content: cleanText(item.content, 1000) }));
+    .map(item => ({ role: item.role, content: cleanText(item.content, 500) }));
+}
+
+function formatQuestionForVoice(question) {
+  const text = cleanText(question, 800);
+  if (/\b(detallad[oa]|a detalle|paso a paso|explica(?:me)? con profundidad|c[oó]digo completo)\b/i.test(text)) {
+    return text;
+  }
+  return [
+    "Responde en español de México, pensado para escucharse en voz alta.",
+    "Da primero la respuesta principal, en no más de dos frases breves y unas 35 palabras.",
+    "No incluyas bloques de código. Si requiere modificar archivos o ejecutar código, resume el siguiente paso y sugiere ChatGPT Work o Codex.",
+    "Pregunta: " + text,
+  ].join(" ");
 }
 
 function postChat(pregunta, historial) {
@@ -81,7 +94,7 @@ function postChat(pregunta, historial) {
   url.hash = "";
 
   const body = Buffer.from(JSON.stringify({
-    pregunta: cleanText(pregunta, 1200),
+    pregunta: formatQuestionForVoice(pregunta),
     historial: safeHistory(historial),
   }), "utf8");
   if (body.length > MAX_REQUEST_BYTES) {
@@ -201,9 +214,11 @@ const PreguntaIntentHandler = {
 
     const attributes = input.attributesManager.getSessionAttributes() || {};
     const historial = safeHistory(attributes[SESSION_HISTORY_KEY]);
+    const requestStartedAt = Date.now();
     try {
       const result = await postChat(pregunta, historial);
-      const respuesta = cleanText(result.respuesta, 1700);
+      console.info("Matick Alexa Worker latency_ms:", Date.now() - requestStartedAt);
+      const respuesta = cleanText(result.respuesta, 700);
       const recommend = shouldSuggestWork(pregunta, result);
       let speech = respuesta;
 
@@ -234,7 +249,8 @@ const PreguntaIntentHandler = {
       return response.getResponse();
     } catch (error) {
       // Solo se registra un código interno; nunca la consulta, respuesta o token.
-      console.error("Matick Alexa Worker error:", error && error.code ? error.code : "unexpected");
+      console.error("Matick Alexa Worker error:", error && error.code ? error.code : "unexpected",
+        "latency_ms:", Date.now() - requestStartedAt);
       return speak(input, errorMessage(error));
     }
   },

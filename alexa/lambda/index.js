@@ -6,10 +6,11 @@ const {
   buildWorkSuggestion,
   createWorkSummary,
   escapeSsml,
+  formatQuestionForVoice,
   shouldRecommendCloudWork,
 } = require("./router-policy");
 
-const MAX_HISTORY_ITEMS = 8;
+const MAX_HISTORY_ITEMS = 4;
 
 function spoken(handlerInput, text, endSession = false) {
   const response = handlerInput.responseBuilder.speak(escapeSsml(text));
@@ -69,9 +70,11 @@ const QuestionIntentHandler = {
     }
 
     const history = historyFrom(handlerInput).slice(-MAX_HISTORY_ITEMS);
+    const requestStartedAt = Date.now();
     try {
-      const result = await postChat({ pregunta: question, historial: history });
-      const answer = result.respuesta.trim().slice(0, 2500);
+      const result = await postChat({ pregunta: formatQuestionForVoice(question), historial: history });
+      console.info("Matick Alexa Worker latency_ms:", Date.now() - requestStartedAt);
+      const answer = result.respuesta.trim().slice(0, 700);
       const recommendWork = shouldRecommendCloudWork(question, result);
       const speech = recommendWork
         ? answer + " " + buildWorkSuggestion(/\b(?:abre|abrir|inicia|iniciar|pasa|pasar|manda|mandar|lleva|llevar|usa|usar|quiero seguir con|quiero usar)\b.{0,64}\b(?:codex|work)\b/i.test(question))
@@ -92,7 +95,8 @@ const QuestionIntentHandler = {
       return response.reprompt("Puedes hacer otra pregunta a ChatGPT.").getResponse();
     } catch (error) {
       // No registrar preguntas, historial, credenciales ni cuerpos del Worker.
-      console.error("Matick Alexa Worker error:", error instanceof WorkerError ? error.code : "unexpected");
+      console.error("Matick Alexa Worker error:", error instanceof WorkerError ? error.code : "unexpected",
+        "latency_ms:", Date.now() - requestStartedAt);
       return spoken(handlerInput, errorSpeech(error));
     }
   },
