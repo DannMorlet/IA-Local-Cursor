@@ -5,9 +5,9 @@ Valores preparados para copiar a Alexa Developer Console. La ficha no queda publ
 | Campo | Valor |
 | --- | --- |
 | Nombre de la Skill | Matick Inteligente |
-| Nombre de invocación (frase hablada) | matic |
+| Nombre de invocación (frase hablada) | matic set |
 | Idioma | Español (México) — es-MX |
-| Frase de apertura | «Alexa, abre Matic» |
+| Frase de apertura | «Alexa, abre Matic Set» |
 | Descripción breve | Pregunta a ChatGPT en español y recibe una sugerencia para continuar tareas técnicas en ChatGPT Work o Codex. |
 | Categoría sugerida | Educación / Referencia (selecciona la categoría disponible más cercana en Console) |
 | País de distribución | México |

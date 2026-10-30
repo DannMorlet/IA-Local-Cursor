@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "matic",
+      "invocationName": "matic set",
       "intents": [
         {
           "name": "PreguntaIntent",
