@@ -5,10 +5,11 @@
 - **Solicitud:** actualizar la Skill para español de México, preparar un icono identificable y dejar instrucciones de uso en Development con Echo Dot 5.
 - **Cambios:** añadido un handler Alexa Skills Kit que enruta preguntas al Cloudflare Worker, modelo `es-MX` con `PreguntaIntent`/slot `consulta`, recomendación clara de ChatGPT Work/Codex para tareas exigentes, ficha en español, dos tamaños de icono, pruebas automatizadas y guía de Console/Echo.
 - **Privacidad:** token leído desde secreto o archivo privado ignorado; no se guardan preguntas en logs; la tarjeta puede contener un resumen de la consulta. Revisar los registros y la retención reales del Worker antes de certificar.
-- **Pruebas locales:** en curso para validar política de enrutamiento y contrato HTTP de `/chat`.
+- **Pruebas locales:** seis pruebas aprobadas: sugerencia de Work, limpieza de salida/SSML, HTTPS/token, límite de historial y contrato HTTP de `/chat` simulado en localhost. También pasan la sintaxis Node y la validación JSON del modelo. Esto no prueba el Worker productivo ni un Echo.
 - **Estado de integración:** `/health` funciona, pero `/chat` respondió “Servicio pendiente de configuración”. No se cambió la Skill en Amazon Console porque la sesión del portal rechazó la conexión; no se pudo confirmar el icono ni ficha en la app Alexa.
 - **Prueba real:** Echo Dot 5 no disponible a esta ejecución; ninguna prueba física se declara aprobada.
 - **Pendiente:** configurar token secreto compatible en Alexa-hosted, validar en simulator, habilitar Test: Development para `es-MX`, asociar dispositivo/cuenta y validar invocación y pregunta real en Echo; completar contacto y política de privacidad antes de enviar a certificación.
+- **Límites de presupuesto:** Alexa no recibe el porcentaje restante de Codex, por lo que no puede avisar automáticamente cada 10% ni pausar al llegar a 10% disponible. El enrutamiento recomienda ChatGPT primero y sugiere Work/Codex para tareas exigentes. La llamada del Worker es una integración de API independiente de la sesión visible ChatGPT; confirma su esquema de facturación en Cloudflare/OpenAI antes de habilitarla.
 
 ## 30 de octubre de 2026 — Dirección de componentes v0.2.0
 
