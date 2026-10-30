@@ -99,7 +99,7 @@ El ejemplo solo enlaza el puerto en localhost. Para producción: reverse proxy T
 
 ## Alexa — Matick Inteligente
 
-La carpeta `alexa/` contiene el handler Alexa Skills Kit, modelo de interacción `es-MX`, pruebas unitarias, ficha de tienda y guía de prueba física. El handler envía preguntas al Worker `matick-alexa-cloud` con `MATICK_BRIDGE_TOKEN` y recomienda Work/Codex para tareas que requieren ejecución; Alexa no puede abrir la app ni transferir una tarea automáticamente. El icono grande y pequeño están en `alexa/assets/`.
+La carpeta `alexa/` contiene una propuesta de handler Alexa Skills Kit, modelo candidato `es-MX`, pruebas unitarias, ficha de tienda e instrucciones de integración. No pudimos consultar el código/modelo actualmente desplegado en Amazon Console. Conserva y compara sus handlers, intents, slots y frases que ya funcionen antes de integrar esta propuesta. El adaptador envía preguntas al Worker `matick-alexa-cloud` con `MATICK_BRIDGE_TOKEN` y recomienda Work/Codex para tareas que requieren ejecución; Alexa no puede abrir la app ni transferir una tarea automáticamente. El icono grande y pequeño están en `alexa/assets/`.
 
 El Worker `/health` responde, pero `/chat` reportó **servicio pendiente de configuración** durante la última comprobación. Por eso el backend Alexa no está listo para prueba de preguntas hasta configurar la conexión segura. La Skill solo aparece como desarrollo en la app Alexa cuando Console guarda y habilita el test en la misma cuenta y locale del dispositivo; todavía no se ha confirmado una prueba en Echo real ni una publicación.
 

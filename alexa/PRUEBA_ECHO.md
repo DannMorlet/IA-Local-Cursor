@@ -1,20 +1,21 @@
 # Prueba de Skill Alexa en desarrollo — es-MX
 
-## Primero en Developer Console
+## Antes de cambiar la Skill actual
 
 1. Abre la Skill ID `amzn1.ask.skill.8a0bdb03-ba75-4bf3-b205-f62f4ded3499` en la cuenta de desarrollador propietaria.
-2. En **Build > Invocation**, configura `matic set` y guarda el modelo `es-MX` de `interactionModels/custom/es-MX.json`.
-3. En **Build > Interaction Model**, compila el modelo para es-MX y confirma que la compilación termine correctamente.
-4. En **Code**, instala dependencias de `alexa/lambda/package.json`, actualiza el manejador con estos archivos y carga `MATICK_BRIDGE_TOKEN` como variable segura o secreto del backend. No pegues el token en el código ni en archivos versionados.
-5. En **Test**, cambia el estado a **Development** y selecciona `es-MX`. La consola debe mostrar que la prueba está habilitada.
-6. Guarda el nombre, descripción, iconos y ejemplos de `FICHA_ES_MX.md` en **Distribution/Store Preview**. Los iconos generados están en `assets/`.
+2. Antes de editar, copia el modelo `es-MX` y el código desplegado. Esa copia sirve para restaurar las rutas funcionales.
+3. Revisa el nombre de invocación activo y conserva los intents, slots, frases y handlers que ya funcionen. El JSON del repositorio es una propuesta candidata; no reemplaces el modelo completo con ese archivo.
+4. Si pruebas `matic set`, cambia solo el nombre de invocación y conserva el resto del modelo. Compila `es-MX`; si falla la compilación o el Echo deja de abrirla, restaura la copia previa.
+5. En **Code**, compara el handler desplegado con `alexa/lambda/` e integra solo lo necesario. No reemplaces todo el `index.js` antes de preservar sus handlers existentes. Configura `MATICK_BRIDGE_TOKEN` como secreto; no lo guardes en código ni archivos versionados.
+6. En **Test**, selecciona **Development** y `es-MX`; confirma que el test esté habilitado.
+7. Guarda nombre visible, descripción e iconos de `FICHA_ES_MX.md` en **Distribution/Store Preview**. Los iconos están en `assets/`.
 
 ## App Alexa y Echo Dot 5
 
 1. Usa en la app Alexa la misma cuenta Amazon que es propietaria o tester autorizado de la Skill.
 2. Confirma que el Echo Dot 5 está registrado en esa cuenta y con idioma/región **Español (México)**.
-3. En la app Alexa, busca la Skill de desarrollo en **Más > Skills y juegos > Tus Skills > Dev** (la ubicación y etiqueta pueden variar por versión) y habilítala si aparece. Si no aparece, revisa cuenta, locale y el estado **Development** en Console.
-4. Di: «Alexa, abre Matic Set». Debe escuchar el saludo de lanzamiento. Esta frase aún requiere confirmación de reconocimiento en el Echo real.
+3. En la app Alexa, busca la Skill de desarrollo en **Más > Skills y juegos > Tus Skills > Dev** y habilítala si aparece. Si no aparece, revisa cuenta, locale y estado de prueba en Console.
+4. Di el nombre que aparece guardado en **Build > Invocation**. Usa «Alexa, abre Matic Set» solo si ese candidato ya se guardó y compiló.
 5. Di: «pregunta qué es una red neuronal». Debe responder una consulta real del Worker.
 6. Di: «ayúdame a corregir el código de mi proyecto». Debe contestar y sugerir ChatGPT Work/Codex. Revisa la tarjeta en la app Alexa.
 7. Prueba una pregunta sin conexión y confirma que el mensaje no exponga tokens o detalles internos.
