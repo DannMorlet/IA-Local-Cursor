@@ -1,0 +1,44 @@
+name: Matick Studio LM - Cloud y DirectX 12
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cloud:
+    name: Contrato y pruebas cloud
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compilar sintaxis Python
+        run: python -m compileall -q cloud
+      - name: Pruebas API y persistencia
+        env:
+          PYTHONPATH: cloud
+        run: python -m unittest discover -s cloud/tests -v
+
+  windows-dx12:
+    name: Compilar interfaz DirectX 12 x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar MSVC / CMake
+        shell: pwsh
+        run: cmake -S windows -B out/build -G "Visual Studio 17 2022" -A x64
+      - name: Compilar ejecutable
+        shell: pwsh
+        run: cmake --build out/build --config Release --parallel
+      - name: Publicar ejecutable como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: MatickStudioLM-Windows-x64
+          path: out/build/Release/MatickStudioLM.exe
+          if-no-files-found: error
+          retention-days: 30

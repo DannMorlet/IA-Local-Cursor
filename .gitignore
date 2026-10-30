@@ -1,6 +1,27 @@
-*.i
-*.ii
-*.gpu
-*.ptx
-*.cubin
-*.fatbin
+# Compilación Windows
+out/
+build/
+.vs/
+*.user
+*.suo
+*.obj
+*.pdb
+*.ilk
+*.exe
+*.dll
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Datos locales
+*.db
+*.sqlite3
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example
+.DS_Store
