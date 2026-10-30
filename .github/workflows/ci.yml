@@ -26,7 +26,8 @@ jobs:
 
   windows-dx12:
     name: Compilar interfaz DirectX 12 x64
-    runs-on: windows-latest
+    # Pin VS 2022: windows-latest ahora incluye Visual Studio 2026
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - name: Configurar MSVC / CMake
