@@ -195,7 +195,7 @@ std::wstring CloudURL() {
 }
 
 bool IsCloudHealthy(const std::wstring& base) {
-    URL_COMPONENTSW parts = {};
+    URL_COMPONENTS parts = {};
     parts.dwStructSize = sizeof(parts);
     parts.dwHostNameLength = static_cast<DWORD>(-1);
     parts.dwUrlPathLength = static_cast<DWORD>(-1);
