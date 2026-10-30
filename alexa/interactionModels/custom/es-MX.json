@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "matick inteligente",
+      "invocationName": "matic ia",
       "intents": [
         {
           "name": "PreguntaIntent",
