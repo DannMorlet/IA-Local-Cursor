@@ -4,6 +4,12 @@
 
 > Estado: **base técnica inicial (MVP)**. Incluye un bus HTTP con persistencia SQLite y pruebas, un cliente nativo de Windows que inicia DirectX 12 y consulta el estado de la nube, y CI para generar un ejecutable. **No** incluye todavía un modelo desplegado, conexión real con ChatGPT, skill Alexa publicada ni instalador final.
 
+## Diseño del tablero aprobado — vista DX12
+
+La referencia visual que aprobaste se está trasladando a la aplicación nativa: navegación oscura a la izquierda, zona de trabajo clara en el centro, tarjetas de seis frentes y modelos, y mascota a la derecha. Consulta [la especificación visual](docs/UI_REFERENCIA_MATICK.md).
+
+**Estado del prototipo visual:** los paneles y navegación de demostración están implementados; la mascota es un dibujo vectorial provisional que parpadea, **no todavía tu recurso original animado**. El campo de texto permite escribir, pero el botón de envío explica que el modelo aún no está conectado y no ejecuta tareas. Las conexiones de Alexa, ChatGPT y el reloj se marcan como pendientes hasta ser verificadas.
+
 ## Arquitectura
 
 | Componente | Dónde corre | Responsabilidad |

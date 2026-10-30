@@ -5,6 +5,7 @@
 #include <dxgi1_6.h>
 #include <wrl/client.h>
 #include <winhttp.h>
+#include "dashboard.h"
 
 #include <algorithm>
 #include <atomic>
@@ -18,12 +19,9 @@ using Microsoft::WRL::ComPtr;
 
 namespace {
 constexpr UINT kFrames = 2;
-constexpr UINT kWidth = 1160;
-constexpr UINT kHeight = 740;
+constexpr UINT kWidth = 1500;
+constexpr UINT kHeight = 850;
 constexpr UINT kHealthMessage = WM_APP + 1;
-HWND gStatus = nullptr;
-HBRUSH gSideBrush = nullptr;
-HBRUSH gCardBrush = nullptr;
 
 void Check(HRESULT result) {
     if (FAILED(result)) {
@@ -126,23 +124,36 @@ struct Renderer {
 
         D3D12_CPU_DESCRIPTOR_HANDLE rtv = rtvHeap->GetCPUDescriptorHandleForHeapStart();
         rtv.ptr += static_cast<SIZE_T>(current) * rtvSize;
-        const FLOAT background[4] = {0.035f, 0.055f, 0.095f, 1.0f};
-        const FLOAT sidebar[4] = {0.055f, 0.086f, 0.145f, 1.0f};
-        const FLOAT panel[4] = {0.078f, 0.122f, 0.200f, 1.0f};
-        const FLOAT highlight[4] = {0.0f, 0.72f, 0.76f, 1.0f};
-        const FLOAT topbar[4] = {0.067f, 0.106f, 0.165f, 1.0f};
+        // La composición de paneles usa Direct3D 12; controles y mascota son Win32.
+        const FLOAT background[4] = {0.043f, 0.073f, 0.126f, 1.0f};
+        const FLOAT sidebar[4] = {0.037f, 0.070f, 0.124f, 1.0f};
+        const FLOAT topbar[4] = {0.043f, 0.067f, 0.113f, 1.0f};
+        const FLOAT workspace[4] = {0.946f, 0.963f, 0.984f, 1.0f};
+        const FLOAT white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+        const FLOAT cards[4] = {0.974f, 0.983f, 0.995f, 1.0f};
+        const FLOAT accent[4] = {0.0f, 0.69f, 0.95f, 1.0f};
+        const FLOAT rightCard[4] = {0.070f, 0.109f, 0.181f, 1.0f};
 
+        const auto fill = [&](const FLOAT* color, LONG l, LONG t, LONG r, LONG bot) {
+            const RECT region{l, t, r, bot};
+            commands->ClearRenderTargetView(rtv, color, 1, &region);
+        };
         commands->ClearRenderTargetView(rtv, background, 0, nullptr);
-        const RECT sideRect = {0, 0, 270, static_cast<LONG>(kHeight)};
-        const RECT headerRect = {270, 0, static_cast<LONG>(kWidth), 76};
-        const RECT panelRect = {302, 111, 1125, 514};
-        const RECT lineRect = {302, 111, 1125, 115};
-        const RECT bottomRect = {302, 536, 1125, 678};
-        commands->ClearRenderTargetView(rtv, sidebar, 1, &sideRect);
-        commands->ClearRenderTargetView(rtv, topbar, 1, &headerRect);
-        commands->ClearRenderTargetView(rtv, panel, 1, &panelRect);
-        commands->ClearRenderTargetView(rtv, highlight, 1, &lineRect);
-        commands->ClearRenderTargetView(rtv, panel, 1, &bottomRect);
+        fill(workspace, 290, 66, 1180, static_cast<LONG>(kHeight));
+        fill(sidebar, 0, 66, 290, static_cast<LONG>(kHeight));
+        fill(topbar, 0, 0, static_cast<LONG>(kWidth), 66);
+        fill(white, 308, 91, 1164, 417);
+        fill(accent, 308, 91, 1164, 95);
+        fill(white, 308, 457, 862, 675);
+        fill(white, 880, 457, 1164, 803);
+        fill(white, 308, 689, 862, 803);
+        for (const LONG y : {510L, 584L}) {
+            for (const LONG x : {321L, 498L, 675L}) {
+                fill(cards, x, y, x + 166, y + 63);
+            }
+        }
+        fill(rightCard, 1196, 477, 1484, 798);
+        fill(accent, 1209, 476, 1467, 479);
 
         std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
         commands->ResourceBarrier(1, &barrier);
@@ -248,24 +259,6 @@ bool IsCloudHealthy(const std::wstring& base) {
     return healthy;
 }
 
-HWND CreateLabel(
-    HWND parent, HINSTANCE instance, int id, const wchar_t* text,
-    int x, int y, int width, int height, int pointSize = 17
-) {
-    HWND label = CreateWindowExW(
-        0, L"STATIC", text, WS_CHILD | WS_VISIBLE | SS_LEFT,
-        x, y, width, height, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),
-        instance, nullptr
-    );
-    HFONT font = CreateFontW(
-        -pointSize, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
-        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI"
-    );
-    SendMessageW(label, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-    return label;
-}
-
 LRESULT CALLBACK MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     Renderer* renderer = reinterpret_cast<Renderer*>(GetWindowLongPtrW(window, GWLP_USERDATA));
     switch (message) {
@@ -274,20 +267,14 @@ LRESULT CALLBACK MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lP
             SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(info->lpCreateParams));
             return TRUE;
         }
-        case WM_CTLCOLORSTATIC: {
-            HDC dc = reinterpret_cast<HDC>(wParam);
-            HWND label = reinterpret_cast<HWND>(lParam);
-            const int id = GetDlgCtrlID(label);
-            if (id < 100) {
-                SetBkColor(dc, RGB(14, 22, 37));
-                SetTextColor(dc, RGB(194, 229, 237));
-                return reinterpret_cast<INT_PTR>(gSideBrush);
-            }
-            SetBkColor(dc, RGB(20, 31, 51));
-            SetTextColor(dc, id == 101 ? RGB(60, 224, 229) : RGB(210, 228, 239));
-            return reinterpret_cast<INT_PTR>(gCardBrush);
-        }
+        case WM_CTLCOLORSTATIC:
+            return DashboardControlColor(reinterpret_cast<HDC>(wParam),
+                                         reinterpret_cast<HWND>(lParam));
+        case WM_COMMAND:
+            DashboardCommand(window, LOWORD(wParam));
+            return 0;
         case WM_TIMER:
+            DashboardTick();
             if (renderer) {
                 try {
                     renderer->Render();
@@ -300,11 +287,7 @@ LRESULT CALLBACK MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lP
             }
             return 0;
         case kHealthMessage:
-            if (gStatus) {
-                SetWindowTextW(gStatus, wParam
-                    ? L"API cloud: EN LINEA /health"
-                    : L"API cloud: DESCONECTADA");
-            }
+            DashboardSetCloudStatus(wParam != 0);
             return 0;
         case WM_DESTROY:
             KillTimer(window, 1);
@@ -319,8 +302,6 @@ LRESULT CALLBACK MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lP
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     Renderer renderer;
-    gSideBrush = CreateSolidBrush(RGB(14, 22, 37));
-    gCardBrush = CreateSolidBrush(RGB(20, 31, 51));
 
     WNDCLASSEXW cls = {};
     cls.cbSize = sizeof(cls);
@@ -330,8 +311,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     cls.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     if (!RegisterClassExW(&cls)) {
         MessageBoxW(nullptr, L"No se pudo registrar la ventana.", L"Matick Studio LM", MB_ICONERROR);
-        DeleteObject(gSideBrush);
-        DeleteObject(gCardBrush);
         return 1;
     }
 
@@ -345,8 +324,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
         nullptr, nullptr, instance, &renderer
     );
     if (!window) {
-        DeleteObject(gSideBrush);
-        DeleteObject(gCardBrush);
         return 1;
     }
     try {
@@ -357,25 +334,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
             L"Matick Studio LM", MB_ICONERROR
         );
         DestroyWindow(window);
-        DeleteObject(gSideBrush);
-        DeleteObject(gCardBrush);
         return 1;
     }
 
-    CreateLabel(window, instance, 1, L"MATICK", 30, 28, 220, 40, 29);
-    CreateLabel(window, instance, 2, L"STUDIO LM", 30, 71, 220, 32, 21);
-    CreateLabel(window, instance, 3, L"LOCAL  /  MORLET", 30, 149, 225, 30);
-    CreateLabel(window, instance, 4, L"DirectX 12  [activo]", 30, 206, 220, 30);
-    CreateLabel(window, instance, 5, L"GPU / WINDOWS 11", 30, 249, 225, 30);
-    CreateLabel(window, instance, 6, L"Cloud / API", 30, 292, 220, 30);
-    CreateLabel(window, instance, 100, L"MATICK STUDIO LM  /  CLOUD", 321, 144, 700, 35, 26);
-    gStatus = CreateLabel(window, instance, 101, L"API cloud: verificando...", 321, 204, 650, 34, 21);
-    CreateLabel(window, instance, 102, L"Interfaz: Windows nativo + Direct3D 12", 321, 272, 680, 30);
-    CreateLabel(window, instance, 103, L"Mensajería y autenticación: disponibles en cloud API", 321, 322, 750, 30);
-    CreateLabel(window, instance, 104, L"ChatGPT / Codex / Reloj / Alexa: conectores pendientes", 321, 372, 770, 30);
-    CreateLabel(window, instance, 105, L"Modelo IA cloud: pendiente de implementar", 321, 422, 730, 30);
-    CreateLabel(window, instance, 106, L"Proyecto independiente de LM Studio", 321, 577, 690, 31, 20);
-    CreateLabel(window, instance, 107, L"Estado inicial: MVP - Sin servicios de terceros conectados", 321, 627, 760, 28, 17);
+    DashboardInstall(window, instance);
 
     ShowWindow(window, show);
     UpdateWindow(window);
@@ -401,7 +363,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     running.store(false);
     monitor.join();
     renderer.Finish();
-    DeleteObject(gSideBrush);
-    DeleteObject(gCardBrush);
+    DashboardShutdown();
     return static_cast<int>(message.wParam);
 }
