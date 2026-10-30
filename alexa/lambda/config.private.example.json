@@ -1,0 +1,4 @@
+{
+  "workerUrl": "https://matick-alexa-cloud.danymorlet98.workers.dev",
+  "bridgeToken": "REEMPLAZA_CON_EL_SECRETO_CONFIGURADO_EN_CLOUDFLARE"
+}

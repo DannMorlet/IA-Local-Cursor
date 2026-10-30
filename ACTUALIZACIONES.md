@@ -1,5 +1,15 @@
 # Actualizaciones Matick Studio LM
 
+## 30 de octubre de 2026 — Alexa y ficha de Matick Inteligente
+
+- **Solicitud:** actualizar la Skill para español de México, preparar un icono identificable y dejar instrucciones de uso en Development con Echo Dot 5.
+- **Cambios:** añadido un handler Alexa Skills Kit que enruta preguntas al Cloudflare Worker, modelo `es-MX` con `PreguntaIntent`/slot `consulta`, recomendación clara de ChatGPT Work/Codex para tareas exigentes, ficha en español, dos tamaños de icono, pruebas automatizadas y guía de Console/Echo.
+- **Privacidad:** token leído desde secreto o archivo privado ignorado; no se guardan preguntas en logs; la tarjeta puede contener un resumen de la consulta. Revisar los registros y la retención reales del Worker antes de certificar.
+- **Pruebas locales:** en curso para validar política de enrutamiento y contrato HTTP de `/chat`.
+- **Estado de integración:** `/health` funciona, pero `/chat` respondió “Servicio pendiente de configuración”. No se cambió la Skill en Amazon Console porque la sesión del portal rechazó la conexión; no se pudo confirmar el icono ni ficha en la app Alexa.
+- **Prueba real:** Echo Dot 5 no disponible a esta ejecución; ninguna prueba física se declara aprobada.
+- **Pendiente:** configurar token secreto compatible en Alexa-hosted, validar en simulator, habilitar Test: Development para `es-MX`, asociar dispositivo/cuenta y validar invocación y pregunta real en Echo; completar contacto y política de privacidad antes de enviar a certificación.
+
 ## 30 de octubre de 2026 — Dirección de componentes v0.2.0
 
 - **Solicitud:** preparar Matick Studio LM para dirigir eventos entre los componentes del ecosistema.

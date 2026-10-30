@@ -2,7 +2,7 @@
 
 **Repositorio oficial del nuevo proyecto Matick Studio LM en la nube.** Es un producto independiente de LM Studio y no requiere instalar LM Studio para que su servidor de mensajes funcione.
 
-> Estado: **MVP de dirección v0.2.0**. El bus HTTP/SQLite aplica rutas por rol, permite a Matick Studio LM y ChatGPT dirigir eventos a varios destinatarios explícitos, y ofrece un receptor de estatus de solo lectura para Matick Pet. Los adaptadores de Alexa, ChatGPT, Matick Chat, Matick Codex, Matick Reloj y la mascota siguen pendientes; el cliente Windows aún solo verifica `/health`.
+> Estado: **MVP de dirección v0.2.0**. El bus HTTP/SQLite aplica rutas por rol, permite a Matick Studio LM y ChatGPT dirigir eventos a varios destinatarios explícitos, y ofrece un receptor de estatus de solo lectura para Matick Pet. Hay un adaptador Alexa preparado en `alexa/`, pero falta cargarlo en la Skill, configurar el secreto del Worker y probarlo en Echo Dot 5. Los adaptadores del bus para ChatGPT, Matick Chat, Codex, Reloj y mascota siguen pendientes; el cliente Windows aún solo verifica `/health`.
 
 ## Arquitectura
 
@@ -96,6 +96,14 @@ El ejemplo solo enlaza el puerto en localhost. Para producción: reverse proxy T
 | Alexa / Matick Reloj / Matick Codex / Matick Chat | Roles y rutas preparados, **adaptadores no conectados** |
 | Ejecución de modelos IA en la nube | **No implementada** |
 | Despliegue 24/7 y dominio | **No realizado** |
+
+## Alexa — Matick Inteligente
+
+La carpeta `alexa/` contiene el handler Alexa Skills Kit, modelo de interacción `es-MX`, pruebas unitarias, ficha de tienda y guía de prueba física. El handler envía preguntas al Worker `matick-alexa-cloud` con `MATICK_BRIDGE_TOKEN` y recomienda Work/Codex para tareas que requieren ejecución; Alexa no puede abrir la app ni transferir una tarea automáticamente. El icono grande y pequeño están en `alexa/assets/`.
+
+El Worker `/health` responde, pero `/chat` reportó **servicio pendiente de configuración** durante la última comprobación. Por eso el backend Alexa no está listo para prueba de preguntas hasta configurar la conexión segura. La Skill solo aparece como desarrollo en la app Alexa cuando Console guarda y habilita el test en la misma cuenta y locale del dispositivo; todavía no se ha confirmado una prueba en Echo real ni una publicación.
+
+Para configurar la Skill, sigue `alexa/PRUEBA_ECHO.md` y copia la ficha desde `alexa/FICHA_ES_MX.md`. No publiques secretos ni completes los datos de privacidad con información no verificada.
 
 **Migración:** el proyecto anterior `IA-Local-Cursor / GemCo-Joystick` quedó preservado en la rama de respaldo `backup/ia-local-cursor-antes-matick-studio-lm-20261030`. Esta rama `main` comienza de cero, sin reaprovechar el MCP anterior.
 
