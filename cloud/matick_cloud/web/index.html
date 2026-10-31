@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es-MX"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Matick Studio LM · Work</title>
+<link rel="stylesheet" href="/app/style.css"></head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-glyph">◈</span><span><strong>Matick Studio</strong><small>Local · Morlet · Cloud</small></span></div>
+    <button class="new-task" id="new-task">＋ Nuevo trabajo</button>
+    <div class="nav-label">ESPACIO DE TRABAJO</div>
+    <nav aria-label="Navegación principal">
+      <button class="nav active" data-view="workspace">⌂ <span>Trabajo</span></button>
+      <button class="nav" data-view="chat">▤ <span>Chat</span></button>
+      <button class="nav" data-view="models">◈ <span>Modelos IA</span></button>
+      <button class="nav" data-view="tools">⚙ <span>Herramientas MCP</span></button>
+    </nav>
+    <div class="nav-label second">TAREAS RECIENTES</div>
+    <div id="sidebar-tasks" class="sidebar-tasks"><p class="muted">Conecta para consultar tus tareas.</p></div>
+    <div class="sidebar-bottom"><span class="avatar">M</span><div><strong>MORLET-GAMING</strong><small>Matick Cloud v1</small></div></div>
+  </aside>
+  <main class="content">
+    <header class="toolbar"><div><span class="crumb">MATICK</span><span class="slash"> / </span><span id="view-name">Trabajo</span></div><div class="toolbar-right"><span id="connected-dot" class="dot"></span><span id="status">Sin autenticar</span><button id="connect-button" class="ghost">Conectar</button></div></header>
+    <section class="view" id="view-workspace">
+      <div class="hero"><div><div class="eyebrow">TU ESPACIO DE TRABAJO</div><h1>¿Qué construimos hoy?</h1><p>Programación, modelos y agentes coordinados en un mismo lugar.</p></div><div class="hero-orb"><span>◈</span></div></div>
+      <div class="section-heading"><h2>Trabajos</h2><button class="ghost" id="refresh-tasks">Actualizar</button></div>
+      <div id="task-board" class="task-board"><div class="empty">Tus trabajos aparecerán aquí.</div></div>
+      <div class="section-heading"><h2>Acceso rápido</h2></div>
+      <div class="quick-grid">
+        <button class="quick" data-go="chat"><span class="quick-icon">⌘</span><strong>Conversar con Matick</strong><small>Chat con el modelo seleccionado</small></button>
+        <button class="quick" data-go="models"><span class="quick-icon">◈</span><strong>Administrar modelos</strong><small>Carga y parámetros REST v1</small></button>
+        <button class="quick" data-go="tools"><span class="quick-icon">⚙</span><strong>Ver conectores</strong><small>Permisos MCP y estado real</small></button>
+      </div>
+    </section>
+    <section class="view hidden" id="view-chat">
+      <div class="section-heading top"><div><div class="eyebrow">MATICK CHAT</div><h1>Conversación</h1></div><button class="ghost" id="clear-chat">Nueva conversación</button></div>
+      <div class="chat-hint">El chat usa el modelo activo y los ajustes guardados. No ejecuta comandos del equipo.</div>
+      <div class="conversation" id="conversation" aria-live="polite"><div class="welcome"><span class="mini-logo">◈</span><h2>Matick está listo cuando tú lo estés.</h2><p>Selecciona un modelo y escribe tu primera instrucción.</p></div></div>
+      <form class="composer" id="chat-form"><label class="sr-only" for="prompt">Escribe a Matick</label><textarea id="prompt" rows="3" placeholder="Escribe a Matick…   Ctrl + Enter para enviar" maxlength="8000" required></textarea><div class="composer-bottom"><span id="model-chip">Modelo sin seleccionar</span><button type="submit" class="primary" id="send-chat">Enviar ↗</button></div></form>
+    </section>
+    <section class="view hidden" id="view-models">
+      <div class="section-heading top"><div><div class="eyebrow">PROVEEDOR OPCIONAL · REST V1</div><h1>Modelos y parámetros</h1><p>Los modelos viven en tu servidor de inferencia. Matick no descarga pesos sin permiso.</p></div><button class="ghost" id="refresh-models">↻ Actualizar</button></div>
+      <div class="model-layout">
+        <div class="panel"><div class="panel-title"><h2>Modelos disponibles</h2><span id="model-count">0</span></div><input type="search" id="model-search" placeholder="Buscar modelo…"><div id="model-list" class="model-list"><div class="empty">Conecta un proveedor REST v1.</div></div></div>
+        <div class="panel settings"><div class="panel-title"><h2>Configuración</h2><span class="pill" id="model-current">Sin modelo</span></div>
+          <label class="field">ID del modelo <input id="model-id" maxlength="192" placeholder="google/gemma-4…"></label>
+          <div class="form-grid">
+            <label class="field">Temperatura <input id="temperature" type="number" step="0.05" min="0" max="1" value="0.7"></label>
+            <label class="field">Top P <input id="top_p" type="number" step="0.05" min="0" max="1" value="0.95"></label>
+            <label class="field">Top K <input id="top_k" type="number" step="1" min="1" max="500" value="40"></label>
+            <label class="field">Min P <input id="min_p" type="number" step="0.01" min="0" max="1" value="0.05"></label>
+            <label class="field">Penalización repetición <input id="repeat_penalty" type="number" step="0.05" min="0.5" max="2" value="1.1"></label>
+            <label class="field">Tokens salida <input id="max_output_tokens" type="number" step="32" min="16" max="8192" value="512"></label>
+            <label class="field">Razonamiento <select id="reasoning"><option value="" selected>Modelo decide (recomendado)</option><option value="off">Apagado</option><option value="low">Bajo</option><option value="medium">Medio</option><option value="high">Alto</option><option value="on">Automático/Activado</option></select></label>
+            <label class="field">Contexto <input id="context_length" type="number" step="512" min="512" max="65536" value="4096"></label>
+            <label class="field">Batch evaluación <input id="eval_batch_size" type="number" step="32" min="16" max="4096" value="256"></label>
+          </div>
+          <div class="checks"><label><input type="checkbox" id="flash_attention" checked> Flash Attention</label><label><input type="checkbox" id="offload_kv_cache_to_gpu" checked> KV cache en GPU</label></div>
+          <div class="model-actions"><button class="primary" id="save-model">Guardar ajustes</button><button class="ghost" id="load-model">Cargar</button><button class="danger" id="unload-model">Descargar RAM</button></div>
+          <p class="hint">Cargar reserva RAM/VRAM en el equipo que ejecuta el motor. “Descargar RAM” libera la instancia: no borra archivos del disco.</p>
+        </div>
+      </div>
+      <div class="panel download-panel"><div><h2>Descargar modelo nuevo</h2><p>Solo cuando el administrador habilite descargas grandes en el servidor.</p></div><div class="download-row"><input id="download-id" placeholder="ID del catálogo (ej. ibm/granite-4-micro)" maxlength="192"><button class="ghost" id="download-model">Solicitar descarga</button></div></div>
+    </section>
+    <section class="view hidden" id="view-tools"><div class="eyebrow">SEGURIDAD Y HERRAMIENTAS</div><h1>Conectores</h1><p>Matick ToolHub y MCP permanecen deshabilitados hasta que autorices su ejecución en Windows.</p><div class="quick-grid"><div class="quick info"><span class="quick-icon">⚙</span><strong>MCP local</strong><small>No conectado a este servidor cloud</small></div><div class="quick info"><span class="quick-icon">◇</span><strong>Matick Codex</strong><small>Agente autónomo de código: integración pendiente</small></div><div class="quick info"><span class="quick-icon">⊕</span><strong>Dispositivos</strong><small>Alexa y Matick Reloj: no verificados</small></div></div><p class="hint">Ninguna herramienta de control de archivos, mouse o pantalla se ejecuta desde esta página.</p></section>
+  </main>
+  <aside class="rightbar"><div class="right-head"><strong>ASISTENTE</strong><span class="pill">PREVIEW</span></div><div class="bot-art" aria-label="Mascota provisional Matick"><div class="bot-ears"><i></i><i></i></div><div class="bot-face"><b></b><b></b><em></em></div><div class="bot-base"></div></div><h3>Matick</h3><p>Listo para crear cosas contigo.</p><div class="right-divider"></div><h4>ESTADO REAL</h4><div class="state"><span>API</span><strong id="state-api">Sin conexión</strong></div><div class="state"><span>Motor REST v1</span><strong id="state-engine">No configurado</strong></div><div class="state"><span>Modelo activo</span><strong id="state-model">Ninguno</strong></div><div class="state"><span>ChatGPT / Alexa / Reloj</span><strong>Sin integrar</strong></div><div class="right-divider"></div><p class="right-note">Este avatar es provisional. La mascota original se integrará como recurso ligero.</p></aside>
+</div>
+<div id="login-dialog" class="modal"><form id="login-form" class="login-card"><div class="eyebrow">MATICK STUDIO LM · V1</div><h2>Conecta tu espacio</h2><p>Introduce el token del rol <code>windows-dx12</code> o <code>matick-studio-lm</code>. No se guarda en el navegador ni en GitHub.</p><label class="field">Token del servidor <input id="token-input" type="password" autocomplete="off" minlength="16" required></label><button class="primary block" type="submit">Entrar al espacio ↗</button><small id="login-error" role="status"></small></form></div>
+<div id="toast" role="status" class="toast hidden"></div>
+<script src="/app/app.js" defer></script></body></html>

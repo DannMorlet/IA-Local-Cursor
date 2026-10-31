@@ -2,6 +2,8 @@
 // Es una interfaz de Windows integrada con el renderizador Direct3D 12:
 // esta capa Win32 dibuja textos, controles accesibles y una mascota vectorial.
 #include "dashboard.h"
+#include "chat_transport.h"
+#include <shellapi.h>
 #include <string>
 #include <vector>
 
@@ -166,6 +168,11 @@ void DashboardInstall(HWND window, HINSTANCE instance) {
     Label(window, instance, 45, L"Modelos", 801, 22, 100, 29, 18);
     Label(window, instance, 46, L"Herramientas", 927, 22, 142, 29, 18);
     Label(window, instance, 47, L"DirectX 12", 1306, 22, 156, 29, 17, FW_SEMIBOLD);
+    HWND workButton = CreateWindowExW(0, L"BUTTON", L"Abrir Matick Work",
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        1097, 15, 193, 39, window, reinterpret_cast<HMENU>(250), instance, nullptr);
+    SendMessageW(workButton, WM_SETFONT,
+        reinterpret_cast<WPARAM>(NewFont(17, FW_SEMIBOLD)), TRUE);
 
     // Navegación lateral (primera fase: vistas de demostración).
     Label(window, instance, 1, L"+  Nuevo chat", 21, 89, 253, 36, 21, FW_SEMIBOLD);
@@ -309,6 +316,24 @@ void DashboardCommand(HWND window, UINT id) {
         case 42:
             SetPage(L"Trabajo", L"Panel de tareas en desarrollo.");
             break;
+        case 250: {
+            std::wstring base = MatickReadEnv(L"MATICK_CLOUD_URL");
+            if (base.empty()) base = L"http://127.0.0.1:8787";
+            if (base.rfind(L"http://127.0.0.1:", 0) != 0 &&
+                base.rfind(L"http://localhost:", 0) != 0 &&
+                base.rfind(L"https://", 0) != 0) {
+                MessageBoxW(window, L"Solo HTTP local o HTTPS remoto.", L"Matick Work", MB_ICONWARNING);
+                break;
+            }
+            while (!base.empty() && base.back() == L'/') base.pop_back();
+            const std::wstring url = base + L"/app";
+            HINSTANCE handle = ShellExecuteW(window, L"open", url.c_str(),
+                nullptr, nullptr, SW_SHOWNORMAL);
+            if (reinterpret_cast<INT_PTR>(handle) <= 32)
+                MessageBoxW(window, L"No se pudo abrir Matick Work en el navegador.",
+                            L"Matick Work", MB_ICONWARNING);
+            break;
+        }
         case 201:
             PostMessageW(window, WM_APP + 2, 0, 0);
             break;

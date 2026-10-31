@@ -18,6 +18,8 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import __version__
 from .provider import OpenAICompatibleProvider, ProviderResponseError, ProviderUnavailable
+from .models import RestV1Bridge, ModelState, ModelOffline, ModelError, valid_params, PARAMS, LOAD_PARAMS, valid_model_id
+from .tasks import TaskStore
 
 ROLES = frozenset({
     "matick-studio-lm", "chatgpt", "matick-chat", "matick-codex",
@@ -110,10 +112,14 @@ class MatickHTTPServer(ThreadingHTTPServer):
         store: EventStore,
         tokens: dict[str, str],
         provider: OpenAICompatibleProvider | None = None,
+        rest: RestV1Bridge | None = None,
     ) -> None:
         self.store = store
         self.tokens = tokens.copy()
         self.provider = provider if provider is not None else OpenAICompatibleProvider.from_env()
+        self.rest = rest if rest is not None else RestV1Bridge.from_env()
+        self.model_state = ModelState(store.path)
+        self.tasks = TaskStore(store.path)
         super().__init__(address, MatickHandler)
 
 
@@ -154,11 +160,35 @@ class MatickHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         route = urlsplit(self.path)
+        web_routes = {"/app": ("index.html", "text/html; charset=utf-8"),
+                      "/app/app.js": ("app.js", "text/javascript; charset=utf-8"),
+                      "/app/style.css": ("style.css", "text/css; charset=utf-8")}
+        if route.path in web_routes:
+            filename, mime = web_routes[route.path]
+            location = Path(__file__).parent / "web" / filename
+            try:
+                payload = location.read_bytes()
+            except OSError:
+                self._respond(HTTPStatus.NOT_FOUND, {"error": "Panel no instalado"})
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", mime)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Security-Policy",
+                             "default-src 'none'; base-uri 'none'; form-action 'none'; "
+                             "script-src 'self'; style-src 'self'; connect-src 'self'; "
+                             "img-src 'self'; frame-ancestors 'none'")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
         if route.path == "/health":
             self._respond(HTTPStatus.OK, {"service": "matick-studio-lm-cloud", "version": __version__, "status": "ok"})
             return
 
-        if route.path not in {"/v1/status", "/v1/events", "/v1/capabilities"}:
+        if route.path not in {"/v1/status", "/v1/events", "/v1/capabilities", "/v1/models", "/v1/models/settings", "/v1/tasks", "/v1/models/download/status"}:
             self._respond(HTTPStatus.NOT_FOUND, {"error": "Ruta no encontrada"})
             return
 
@@ -177,12 +207,41 @@ class MatickHandler(BaseHTTPRequestHandler):
         if route.path == "/v1/capabilities":
             self._respond(HTTPStatus.OK, {
                 "actor": actor,
-                "chat": {"configured": self.server.provider.configured},
+                "chat": {"configured": self.server.provider.configured or self.server.rest.configured},
+                "rest_v1": {"configured": self.server.rest.configured, "models_managed": True},
                 "events": {"configured": True},
                 "mcp": {"configured": False, "reason": "ToolHub funciona separado del servidor cloud"},
                 "devices": {"configured": False},
-                "cloud_model": self.server.provider.model if self.server.provider.configured else None,
+                "cloud_model": self.server.model_state.get()["model"] or (self.server.provider.model if self.server.provider.configured else None),
             })
+            return
+
+        if route.path == "/v1/models/download/status":
+            job_id = parse_qs(route.query).get("job_id", [""])[0]
+            try:
+                status = self.server.rest.download_status(job_id)
+                self._respond(HTTPStatus.OK, {"download": status})
+            except (ValueError, ModelError) as exc:
+                self._respond(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route.path == "/v1/tasks":
+            self._respond(HTTPStatus.OK, {"tasks": self.server.tasks.list()})
+            return
+        if route.path == "/v1/models/settings":
+            self._respond(HTTPStatus.OK, self.server.model_state.get())
+            return
+        if route.path == "/v1/models":
+            if not self.server.rest.configured:
+                self._respond(HTTPStatus.OK, {"models": [], "connected": False,
+                    "provider": "rest-v1", "active": self.server.model_state.get()})
+                return
+            try:
+                models = self.server.rest.models()
+            except (ModelError, ValueError) as exc:
+                self._respond(HTTPStatus.BAD_GATEWAY, {"error": str(exc)})
+                return
+            self._respond(HTTPStatus.OK, {"models": models, "connected": True,
+                "provider": "rest-v1", "active": self.server.model_state.get()})
             return
 
         args = parse_qs(route.query)
@@ -200,7 +259,7 @@ class MatickHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         route = urlsplit(self.path).path
-        if route not in {"/v1/events", "/v1/chat"}:
+        if route not in {"/v1/events", "/v1/chat", "/v1/models/settings", "/v1/models/load", "/v1/models/unload", "/v1/models/download", "/v1/tasks", "/v1/tasks/status"}:
             self._respond(HTTPStatus.NOT_FOUND, {"error": "Ruta no encontrada"})
             return
         actor = self._actor()
@@ -224,6 +283,47 @@ class MatickHandler(BaseHTTPRequestHandler):
         if not isinstance(data, dict):
             self._respond(HTTPStatus.BAD_REQUEST, {"error": "Se espera un objeto JSON"})
             return
+        if route in ("/v1/tasks", "/v1/tasks/status"):
+            if actor not in ("matick-studio-lm", "windows-dx12"):
+                self._respond(HTTPStatus.FORBIDDEN, {"error": "Sin permiso para modificar tareas"})
+                return
+            try:
+                result = (self.server.tasks.create(data.get("title"), data.get("detail", ""))
+                    if route == "/v1/tasks" else
+                    self.server.tasks.set_status(data.get("id"), data.get("status")))
+            except ValueError as exc:
+                self._respond(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._respond(HTTPStatus.CREATED if route == "/v1/tasks" else HTTPStatus.OK, result)
+            return
+        if route.startswith("/v1/models/"):
+            if actor not in {"matick-studio-lm", "windows-dx12"}:
+                self._respond(HTTPStatus.FORBIDDEN, {"error": "Solo el propietario puede cambiar modelos"})
+                return
+            try:
+                if route == "/v1/models/settings":
+                    saved = self.server.model_state.set(data)
+                    self._respond(HTTPStatus.OK, saved)
+                elif route == "/v1/models/load":
+                    model = valid_model_id(data.get("model"))
+                    params = valid_params(data.get("params", {}), LOAD_PARAMS)
+                    loaded = self.server.rest.load(model, params)
+                    self.server.model_state.set({"model": model, "load": params})
+                    self._respond(HTTPStatus.OK, {"loaded": loaded, "active": self.server.model_state.get()})
+                elif route == "/v1/models/unload":
+                    result = self.server.rest.unload(data.get("instance_id"))
+                    if data.get("model") == self.server.model_state.get()["model"]:
+                        self.server.model_state.set({"model": None})
+                    self._respond(HTTPStatus.OK, {"unloaded": result})
+                else:
+                    result = self.server.rest.download(data.get("model"), data.get("quantization"))
+                    self._respond(HTTPStatus.ACCEPTED, {"download": result})
+            except PermissionError as exc:
+                self._respond(HTTPStatus.FORBIDDEN, {"error": str(exc)})
+            except (ValueError, ModelError) as exc:
+                self._respond(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/v1/chat":
             messages = data.get("messages")
             if not isinstance(messages, list) or not 1 <= len(messages) <= 12 or not all(
@@ -243,11 +343,23 @@ class MatickHandler(BaseHTTPRequestHandler):
                 self._respond(HTTPStatus.BAD_REQUEST, {"error": "Último mensaje debe ser del usuario"})
                 return
             try:
-                result = self.server.provider.respond(messages)
-            except ProviderUnavailable as exc:
+                state = self.server.model_state.get()
+                model = data.get("model", state["model"])
+                params = data.get("parameters", state["generation"])
+                if self.server.rest.configured:
+                    if not model:
+                        raise ProviderUnavailable("Selecciona un modelo en /v1/models/settings")
+                    result = self.server.rest.chat(model, messages, params)
+                else:
+                    if model and model != self.server.provider.model:
+                        raise ProviderUnavailable("El proveedor alternativo no tiene ese modelo seleccionado")
+                    # El proveedor OpenAI-compatible es respaldo; sin inferencia nativa activa.
+                    valid_params(params, PARAMS)
+                    result = self.server.provider.respond(messages)
+            except (ProviderUnavailable, ModelOffline) as exc:
                 self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
                 return
-            except ProviderResponseError as exc:
+            except (ProviderResponseError, ModelError, ValueError) as exc:
                 self._respond(HTTPStatus.BAD_GATEWAY, {"error": str(exc)})
                 return
             if "text/plain" in self.headers.get("Accept", ""):
