@@ -29,6 +29,8 @@ jobs:
         run: python -m unittest discover -s tools/tests -v
       - name: Sintaxis del auditor de Windows
         run: python -m compileall -q tools/auditar_matick_pc.py
+      - name: Comprobar servidor MCP Matick sin bibliotecas externas
+        run: python -m compileall -q integrations/matick-mcp
 
   windows-dx12:
     name: Compilar interfaz DirectX 12 x64
@@ -54,19 +56,15 @@ jobs:
           retention-days: 30
 
   toolhub:
-    name: Matick ToolHub / pruebas SDK mock + MCP stdio
+    name: Matick Core / ToolHub / MCP stdio sin SDK externo
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Instalar SDK oficial sin scripts de terceros
-        working-directory: integrations/toolhub
-        run: npm install --ignore-scripts --no-audit --no-fund
-      - name: Comprobar importación del SDK
-        working-directory: integrations/toolhub
-        run: node --input-type=module -e "import('@lmstudio/sdk').then(m => { if (!m.LMStudioClient) process.exit(1); console.log('SDK importado'); })"
+      - name: Comprobar ToolHub sin instalar SDK ni paquetes externos
+        run: node --check integrations/toolhub/src/matick-api.mjs
       - name: Comprobar sintaxis del panel Matick Work
         run: node --check cloud/matick_cloud/web/app.js
       - name: Comprobar registro MCP y adaptador sin servidores externos

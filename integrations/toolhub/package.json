@@ -1,17 +1,14 @@
 {
   "name": "matick-toolhub",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
-  "description": "Matick Studio LM: adaptador opcional lmstudio-js y registro MCP stdio",
+  "description": "Herramientas propias Matick REST v1 + MCP stdio sin SDK externo",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "start": "node src/cli.mjs"
-  },
-  "dependencies": {
-    "@lmstudio/sdk": "2.1.0"
   }
 }
