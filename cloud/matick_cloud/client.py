@@ -4,6 +4,7 @@ Uso:
   python -m matick_cloud.client send matick-chat mensaje '{"texto":"hola"}'
   python -m matick_cloud.client inbox --after 0
   python -m matick_cloud.client status
+  python -m matick_cloud.client health  # sin MATICK_TOKEN
 """
 from __future__ import annotations
 
@@ -19,13 +20,15 @@ from urllib.request import Request, urlopen
 def request(method: str, path: str, payload: dict | None = None) -> dict:
     base = os.environ.get("MATICK_CLOUD_URL", "http://127.0.0.1:8787").rstrip("/")
     token = os.environ.get("MATICK_TOKEN", "")
-    if not token:
+    # Solo GET /health es público: nunca enviamos allí una credencial.
+    public_health = method == "GET" and path == "/health"
+    if not public_health and not token:
         raise ValueError("Define MATICK_TOKEN con el secreto de tu propio rol")
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8") if payload is not None else None
-    req = Request(
-        base + path, data=data, method=method,
-        headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"},
-    )
+    headers = {"Content-Type": "application/json"}
+    if not public_health:
+        headers["Authorization"] = "Bearer " + token
+    req = Request(base + path, data=data, method=method, headers=headers)
     with urlopen(req, timeout=10) as response:
         return json.load(response)
 
@@ -40,10 +43,13 @@ def main() -> int:
     inbox = commands.add_parser("inbox", help="Leer eventos para el rol del token")
     inbox.add_argument("--after", type=int, default=0)
     inbox.add_argument("--limit", type=int, default=50)
+    commands.add_parser("health", help="Comprobar el servidor sin token (estado público)")
     commands.add_parser("status", help="Estado de la identidad autenticada")
     args = parser.parse_args()
     try:
-        if args.command == "send":
+        if args.command == "health":
+            result = request("GET", "/health")
+        elif args.command == "send":
             data = json.loads(args.payload_json)
             if not isinstance(data, dict):
                 raise ValueError("payload_json debe ser un objeto JSON")
