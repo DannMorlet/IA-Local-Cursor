@@ -73,3 +73,17 @@ Carga: `context_length` 512..65536, `eval_batch_size` 16..4096, `num_experts` 1.
 - La mascota vectorial del panel es provisional. La original del usuario no está empaquetada.
 - El backend está pensado para instancia única. Antes de un despliegue público: proxy HTTPS, gestión de secretos, limitación de peticiones y almacenamiento protegido.
 - La instalación portable contiene fuentes ligeros, servidor y EXE; no contiene modelos, CUDA, SDKs ni `node_modules`.
+
+
+## Compatibilidad revisada al 31 de octubre de 2026
+
+LM Studio 0.4.28 build 2 es la última versión del corte indicado:
+https://lmstudio.ai/changelog/lmstudio/lmstudio-v0.4.28
+
+El cambio 0.4.28 afecta Flint y macOS; Matick implementa funciones ya documentadas en 0.4:
+- `GET /api/v1/models`: metadatos de cuantización, variantes y capacidades.
+- `POST /api/v1/chat`: `store` y `previous_response_id` opcionales y estadísticas de tokens. El estado queda guardado en LM Studio únicamente si el usuario marca la casilla del chat.
+- `POST /api/v1/models/load` y `unload`: memoria VRAM/RAM administrada por el proveedor.
+- `/api/v1/models/download/status/{job_id}`: progreso consultado a través de Matick.
+
+Las nuevas rutas `/v1/decisions` y `/v1/systemone` de la serie 0.4.26 se documentan como opcionales. Matick no afirma soportarlas hasta que tenga pruebas específicas.

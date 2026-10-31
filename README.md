@@ -4,6 +4,12 @@
 
 > Estado: **Matick Studio LM Cloud v1.0 — software ejecutable y comprobable**. Incluye un bus HTTP autenticado con SQLite, un proveedor HTTP de inferencia configurable, un ejecutable nativo DirectX 12 que puede enviar mensajes y un paquete portable de archivos permitidos. **No** incluye pesos/modelos, despliegue cloud 24/7, conexión real con ChatGPT/Alexa/reloj, agente Codex que ejecuta código ni un instalador firmado.
 
+## Compatibilidad con LM Studio 0.4.28 · 31 de octubre de 2026
+
+Revisadas las notas oficiales: https://lmstudio.ai/changelog/lmstudio/lmstudio-v0.4.28 (build 2). La v0.4.28 corrige plantillas Flint y un fallo de actualización macOS; las funciones que Matick adapta vienen de la API REST v1 de la serie 0.4. Matick incorpora metadatos de cuantización, variantes y capacidad de razonamiento, y sesiones con `response_id` opcionales. El inventario y los diagnósticos no requieren CUDA ni copiar modelos.
+
+**Para verificar tu PC**: [Descargar e instrucciones del diagnóstico Matick 1–100](docs/DIAGNOSTICO_PC_V1.md). Este porcentaje puntúa evidencias comprobadas, **no** significa un porcentaje real de funciones ejecutándose.
+
 ## Matick Studio LM Cloud v1.0 — Work y modelos
 
 **Panel de trabajo tipo Codex (inspiración visual, no código de OpenAI):** iniciar servidor Python, abrir `http://127.0.0.1:8787/app`. Introducir el token del rol Windows o Studio: solo se guarda en la memoria de la pestaña y no se escribe en disco del navegador. Incluye trabajo/tablero persistente, chat, administrador de modelos y estado de herramientas.

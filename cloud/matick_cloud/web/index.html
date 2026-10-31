@@ -35,7 +35,7 @@
     </section>
     <section class="view hidden" id="view-chat">
       <div class="section-heading top"><div><div class="eyebrow">MATICK CHAT</div><h1>Conversación</h1></div><button class="ghost" id="clear-chat">Nueva conversación</button></div>
-      <div class="chat-hint">El chat usa el modelo activo y los ajustes guardados. No ejecuta comandos del equipo.</div>
+      <div class="chat-hint">El chat usa el modelo activo y los ajustes guardados. No ejecuta comandos del equipo. <label style="display:block;margin-top:10px"><input type="checkbox" id="stateful-chat"> Guardar contexto de esta conversación en REST v1 (opcional)</label><span id="chat-stats" style="display:block;margin-top:8px">Sin métricas todavía</span></div>
       <div class="conversation" id="conversation" aria-live="polite"><div class="welcome"><span class="mini-logo">◈</span><h2>Matick está listo cuando tú lo estés.</h2><p>Selecciona un modelo y escribe tu primera instrucción.</p></div></div>
       <form class="composer" id="chat-form"><label class="sr-only" for="prompt">Escribe a Matick</label><textarea id="prompt" rows="3" placeholder="Escribe a Matick…   Ctrl + Enter para enviar" maxlength="8000" required></textarea><div class="composer-bottom"><span id="model-chip">Modelo sin seleccionar</span><button type="submit" class="primary" id="send-chat">Enviar ↗</button></div></form>
     </section>
