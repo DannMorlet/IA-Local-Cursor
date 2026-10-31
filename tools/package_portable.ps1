@@ -41,7 +41,10 @@ foreach ($relative in @(
     'docs/PLAN_CLOUD_A_PC.md',
     'docs/REST_V1_MODELOS.md',
     'tools/prepare_local_transfer.ps1',
-    'tools/start_matick_portable.ps1'
+    'tools/start_matick_portable.ps1',
+    'tools/auditar_matick_pc.py',
+    'tools/Auditar_Matick_PC.cmd',
+    'docs/AUDITORIA_PC_1_A_100.md'
 )) {
     Copy-LightFile $relative
 }

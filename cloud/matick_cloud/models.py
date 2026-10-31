@@ -139,6 +139,10 @@ class RestV1Bridge:
         return [
             {"key": row.get("key"), "name": row.get("display_name"),
              "type": row.get("type"), "size_bytes": row.get("size_bytes"),
+             "architecture": row.get("architecture"),
+             "format": row.get("format"),
+             "params_string": row.get("params_string"),
+             "max_context_length": row.get("max_context_length"),
              "quantization": (row.get("quantization") or {}).get("name")
                if isinstance(row.get("quantization"), dict) else None,
              "loaded_instances": row.get("loaded_instances", [])}
