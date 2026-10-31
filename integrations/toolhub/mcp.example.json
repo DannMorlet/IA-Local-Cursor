@@ -1,0 +1,80 @@
+{
+  "mcpServers": {
+    "cursor": {
+      "enabled": false,
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "C:/Matick/mcp/cursor/server.py"
+      ],
+      "allowedTools": []
+    },
+    "matick-echo": {
+      "enabled": false,
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "C:/Matick/mcp/matick-echo/server.py"
+      ],
+      "allowedTools": []
+    },
+    "velocidad": {
+      "enabled": false,
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "C:/Matick/mcp/velocidad/server.py"
+      ],
+      "allowedTools": []
+    },
+    "refuerzo": {
+      "enabled": false,
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "C:/Matick/mcp/refuerzo/server.py"
+      ],
+      "allowedTools": []
+    },
+    "agente-enrutador": {
+      "enabled": false,
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "C:/Matick/mcp/cursor/server.py"
+      ],
+      "allowedTools": []
+    },
+    "mascota.mcp": {
+      "enabled": false,
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "C:/Matick/mcp/mascota/server.py"
+      ],
+      "allowedTools": []
+    },
+    "chat_server.mcp": {
+      "enabled": false,
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "C:/Matick/mcp/mascota/chat_server.py"
+      ],
+      "allowedTools": []
+    },
+    "gemco-joystick": {
+      "enabled": false,
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "C:/Matick/mcp/gemco-joystick/server.py"
+      ],
+      "allowedTools": [
+        "gemco_status",
+        "gemco_help",
+        "gemco_stop"
+      ]
+    }
+  }
+}

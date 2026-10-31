@@ -10,6 +10,15 @@ La referencia visual que aprobaste se está trasladando a la aplicación nativa:
 
 **Estado del prototipo visual:** los paneles y navegación de demostración están implementados; la mascota es un dibujo vectorial provisional que parpadea, **no todavía tu recurso original animado**. El campo de texto permite escribir, pero el botón de envío explica que el modelo aún no está conectado y no ejecuta tareas. Las conexiones de Alexa, ChatGPT y el reloj se marcan como pendientes hasta ser verificadas.
 
+## Bibliotecas centrales y herramientas MCP (integración inicial)
+
+Se agregó [Matick ToolHub](integrations/toolhub/): un adaptador **opcional** de `@lmstudio/sdk` (SDK oficial de `lmstudio-js`) y un cliente MCP local `stdio` con registro `mcp.example.json`, descubrimiento de herramientas y autorizaciones explícitas. Revisa [guía de integración, ramas experimentales y seguridad](docs/INTEGRACION_LMSTUDIO_MCP.md).
+
+- Compatible con la idea de **Matick Studio LM propio**: LM Studio no es requisito para la interfaz DX12 ni el servidor cloud.
+- Los ocho MCP del respaldo GemCo están catalogados como **deshabilitados por defecto** y requieren que sus scripts existan en Windows.
+- Las ramas de `lmstudio-js` son material de investigación; se integra una versión publicada del SDK sin copiar código experimental.
+- El cliente MCP y SDK funcionan como un proceso Node separado; todavía falta el puente entre ese proceso y el ejecutable DX12 y la nube.
+
 ## Arquitectura
 
 | Componente | Dónde corre | Responsabilidad |

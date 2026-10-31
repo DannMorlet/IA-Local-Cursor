@@ -43,3 +43,20 @@ jobs:
           path: out/build/Release/MatickStudioLM.exe
           if-no-files-found: error
           retention-days: 30
+
+  toolhub:
+    name: Matick ToolHub / pruebas SDK mock + MCP stdio
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar SDK oficial sin scripts de terceros
+        working-directory: integrations/toolhub
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Comprobar importación del SDK
+        working-directory: integrations/toolhub
+        run: node --input-type=module -e "import('@lmstudio/sdk').then(m => { if (!m.LMStudioClient) process.exit(1); console.log('SDK importado'); })"
+      - name: Comprobar registro MCP y adaptador sin servidores externos
+        run: node --test integrations/toolhub/tests/*.test.mjs
