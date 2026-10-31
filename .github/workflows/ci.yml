@@ -65,5 +65,7 @@ jobs:
       - name: Comprobar importación del SDK
         working-directory: integrations/toolhub
         run: node --input-type=module -e "import('@lmstudio/sdk').then(m => { if (!m.LMStudioClient) process.exit(1); console.log('SDK importado'); })"
+      - name: Comprobar sintaxis del panel Matick Work
+        run: node --check cloud/matick_cloud/web/app.js
       - name: Comprobar registro MCP y adaptador sin servidores externos
         run: node --test integrations/toolhub/tests/*.test.mjs
