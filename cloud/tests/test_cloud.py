@@ -94,10 +94,8 @@ class CloudTests(unittest.TestCase):
 
     def test_cli_health_without_token_and_private_status(self) -> None:
         """El diagnóstico público funciona, pero status exige credenciales."""
-        import io
         import os
         import sys
-        from contextlib import redirect_stdout
         from unittest.mock import patch
         from matick_cloud import client
 
@@ -108,10 +106,12 @@ class CloudTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "MATICK_TOKEN"):
                 client.request("GET", "/v1/status")
 
-            output = io.StringIO()
-            with patch.object(sys, "argv", ["matick_cloud.client", "health"]), redirect_stdout(output):
+            # Interceptar solo la salida del CLI, sin mezclar logs HTTP del servidor.
+            with patch.object(sys, "argv", ["matick_cloud.client", "health"]), \
+                    patch.object(client, "print", create=True) as cli_print:
                 self.assertEqual(client.main(), 0)
-            self.assertEqual(json.loads(output.getvalue())["status"], "ok")
+            cli_print.assert_called_once()
+            self.assertEqual(json.loads(cli_print.call_args.args[0])["status"], "ok")
 
             with patch.dict(os.environ, {"MATICK_TOKEN": self.tokens["matick-chat"]}):
                 private = client.request("GET", "/v1/status")
