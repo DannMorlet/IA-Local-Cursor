@@ -105,9 +105,11 @@ class RestV1Bridge:
     def request(self, path, body=None):
         if not self.configured:
             raise ModelOffline("REST v1 no está configurado")
-        if path not in ("/api/v1/models", "/api/v1/models/load",
-                        "/api/v1/models/unload", "/api/v1/models/download",
-                        "/api/v1/chat"):
+        allowed = ("/api/v1/models", "/api/v1/models/load",
+                   "/api/v1/models/unload", "/api/v1/models/download", "/api/v1/chat")
+        if path not in allowed and not re.fullmatch(
+            r"/api/v1/models/download/status/job_[a-zA-Z0-9_-]{1,128}", path
+        ):
             raise ValueError("Ruta REST v1 no permitida")
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
         if self.token:
@@ -167,6 +169,11 @@ class RestV1Bridge:
                 raise ValueError("Cuantización inválida")
             req["quantization"] = quantization
         return self.request("/api/v1/models/download", req)
+
+    def download_status(self, job_id):
+        if not isinstance(job_id, str) or not re.fullmatch(r"job_[A-Za-z0-9_-]{1,128}", job_id):
+            raise ValueError("ID de descarga inválido")
+        return self.request("/api/v1/models/download/status/" + job_id)
 
     def chat(self, model, messages, params):
         valid_model_id(model)
