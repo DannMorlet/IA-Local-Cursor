@@ -95,11 +95,14 @@ function formValues(){
   const id=$("model-id").value.trim();
   const number=k=>Number($(k).value);
   const generation={temperature:number("temperature"),top_p:number("top_p"),
-    top_k:number("top_k"),max_output_tokens:number("max_output_tokens")};
+    top_k:number("top_k"),min_p:number("min_p"),
+    repeat_penalty:number("repeat_penalty"),reasoning:$("reasoning").value,
+    max_output_tokens:number("max_output_tokens")};
   const load={context_length:number("context_length"),eval_batch_size:number("eval_batch_size"),
     flash_attention:$("flash_attention").checked,
     offload_kv_cache_to_gpu:$("offload_kv_cache_to_gpu").checked};
   for(const [k,min,max] of [["temperature",0,1],["top_p",0,1],["top_k",1,500],
+    ["min_p",0,1],["repeat_penalty",.5,2],
     ["max_output_tokens",16,8192],["context_length",512,65536],["eval_batch_size",16,4096]]){
     const n=number(k);if(!Number.isFinite(n)||n<min||n>max)throw new Error("Parámetro "+k+" fuera de rango");
   }

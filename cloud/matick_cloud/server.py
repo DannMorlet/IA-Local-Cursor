@@ -188,7 +188,7 @@ class MatickHandler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.OK, {"service": "matick-studio-lm-cloud", "version": __version__, "status": "ok"})
             return
 
-        if route.path not in {"/v1/status", "/v1/events", "/v1/capabilities", "/v1/models", "/v1/models/settings", "/v1/tasks"}:
+        if route.path not in {"/v1/status", "/v1/events", "/v1/capabilities", "/v1/models", "/v1/models/settings", "/v1/tasks", "/v1/models/download/status"}:
             self._respond(HTTPStatus.NOT_FOUND, {"error": "Ruta no encontrada"})
             return
 
@@ -216,6 +216,14 @@ class MatickHandler(BaseHTTPRequestHandler):
             })
             return
 
+        if route.path == "/v1/models/download/status":
+            job_id = parse_qs(route.query).get("job_id", [""])[0]
+            try:
+                status = self.server.rest.download_status(job_id)
+                self._respond(HTTPStatus.OK, {"download": status})
+            except (ValueError, ModelError) as exc:
+                self._respond(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route.path == "/v1/tasks":
             self._respond(HTTPStatus.OK, {"tasks": self.server.tasks.list()})
             return

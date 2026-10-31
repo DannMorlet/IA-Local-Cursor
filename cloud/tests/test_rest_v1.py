@@ -17,6 +17,10 @@ from matick_cloud.server import EventStore, MatickHTTPServer
 class RestMock(BaseHTTPRequestHandler):
     requests = []
     def do_GET(self):
+        if self.path == "/api/v1/models/download/status/job_1":
+            self._reply({"job_id": "job_1", "status": "completed",
+                         "total_size_bytes": 100, "downloaded_bytes": 100})
+            return
         if self.path != "/api/v1/models":
             self.send_error(404)
             return
@@ -122,6 +126,8 @@ class RestTests(unittest.TestCase):
             self.call("/v1/models/download", {"model": "google/gemma-demo"})
         self.assertEqual(blocked.exception.code, 403)
         self.assertEqual(len(RestMock.requests), 0)
+        with self.assertRaises(HTTPError):
+            self.call("/v1/models/download/status?job_id=not_a_job")
 
     def test_upstream_security_and_state_persistence(self):
         with self.assertRaises(ValueError):

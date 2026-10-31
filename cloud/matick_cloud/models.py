@@ -25,6 +25,7 @@ PARAMS = {
     "repeat_penalty": ("float", 0.5, 2),
     "max_output_tokens": ("int", 16, 8192),
     "context_length": ("int", 512, 65536),
+    "reasoning": ("choice", None, None),
 }
 LOAD_PARAMS = {
     "context_length": ("int", 512, 65536),
@@ -58,6 +59,9 @@ def valid_params(value, schema):
         if kind == "bool":
             if type(v) is not bool:
                 raise ValueError("El parámetro %s requiere booleano" % k)
+        elif kind == "choice":
+            if v not in ("off", "low", "medium", "high", "on"):
+                raise ValueError("Valor reasoning no admitido")
         elif kind == "int":
             if type(v) is not int or not lo <= v <= hi:
                 raise ValueError("Parámetro %s fuera de rango" % k)
