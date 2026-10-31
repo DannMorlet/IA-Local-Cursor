@@ -31,3 +31,25 @@ integrations/toolhub/node_modules/
 integrations/toolhub/mcp.json
 integrations/toolhub/mcp.local.json
 integrations/toolhub/.env
+
+# Pesos, librerías y compilaciones locales pesadas: no copiar desde MORLET-GAMING
+CUDA/
+cuda/
+models/
+modelos/
+weights/
+checkpoints/
+node_modules/
+vendor/
+third_party/
+third-party/
+external/
+externals/
+*.gguf
+*.safetensors
+*.onnx
+*.engine
+*.pt
+*.pth
+*.bin
+*.zip

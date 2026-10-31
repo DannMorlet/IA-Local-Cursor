@@ -6,6 +6,8 @@
 #include <wrl/client.h>
 #include <winhttp.h>
 #include "dashboard.h"
+#include "chat_transport.h"
+#include <mutex>
 
 #include <algorithm>
 #include <atomic>
@@ -22,6 +24,12 @@ constexpr UINT kFrames = 2;
 constexpr UINT kWidth = 1500;
 constexpr UINT kHeight = 850;
 constexpr UINT kHealthMessage = WM_APP + 1;
+constexpr UINT kChatSendMessage = WM_APP + 2;
+constexpr UINT kChatCompleteMessage = WM_APP + 3;
+std::atomic<bool> gChatBusy{false};
+std::mutex gChatMutex;
+std::wstring gChatResult;
+std::thread gChatThread;
 
 void Check(HRESULT result) {
     if (FAILED(result)) {
@@ -289,6 +297,39 @@ LRESULT CALLBACK MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lP
         case kHealthMessage:
             DashboardSetCloudStatus(wParam != 0);
             return 0;
+        case kChatSendMessage: {
+            if (gChatBusy.exchange(true)) return 0;
+            const std::wstring prompt = DashboardReadChatInput();
+            if (prompt.empty() || prompt.size() > 3000) {
+                DashboardSetChatResponse(L"Escribe de 1 a 3000 caracteres.", false);
+                gChatBusy.store(false);
+                return 0;
+            }
+            if (gChatThread.joinable()) gChatThread.join();
+            DashboardSetChatResponse(L"Matick está consultando el modelo...", true);
+            const std::wstring url = CloudURL();
+            const std::wstring token = MatickReadEnv(L"MATICK_TOKEN");
+            gChatThread = std::thread([window, url, token, prompt]() {
+                ChatReply result = MatickSendChat(url, token, prompt);
+                {
+                    std::lock_guard<std::mutex> lock(gChatMutex);
+                    gChatResult = result.ok ? L"Matick: " + result.text : L"Error: " + result.text;
+                }
+                if (!PostMessageW(window, kChatCompleteMessage, result.ok ? 1 : 0, 0))
+                    gChatBusy.store(false);
+            });
+            return 0;
+        }
+        case kChatCompleteMessage: {
+            std::wstring text;
+            {
+                std::lock_guard<std::mutex> lock(gChatMutex);
+                text = gChatResult;
+            }
+            DashboardSetChatResponse(text, wParam != 0);
+            gChatBusy.store(false);
+            return 0;
+        }
         case WM_DESTROY:
             KillTimer(window, 1);
             PostQuitMessage(0);
@@ -362,6 +403,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     }
     running.store(false);
     monitor.join();
+    if (gChatThread.joinable()) gChatThread.join();
     renderer.Finish();
     DashboardShutdown();
     return static_cast<int>(message.wParam);

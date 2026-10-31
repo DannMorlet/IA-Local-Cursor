@@ -40,11 +40,14 @@ jobs:
       - name: Compilar ejecutable
         shell: pwsh
         run: cmake --build out/build --config Release --parallel
-      - name: Publicar ejecutable como artefacto
+      - name: Construir paquete portable ligero
+        shell: pwsh
+        run: .\\tools\\package_portable.ps1 -ExePath .\\out\\build\\Release\\MatickStudioLM.exe -OutputDir .\\out\\dist
+      - name: Publicar paquete ligero verificado como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: MatickStudioLM-Windows-x64
-          path: out/build/Release/MatickStudioLM.exe
+          name: MatickStudioLM-Windows-x64-Portable
+          path: out/dist/
           if-no-files-found: error
           retention-days: 30
 

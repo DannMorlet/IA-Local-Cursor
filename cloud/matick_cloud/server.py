@@ -17,6 +17,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from . import __version__
+from .provider import OpenAICompatibleProvider, ProviderResponseError, ProviderUnavailable
 
 ROLES = frozenset({
     "matick-studio-lm", "chatgpt", "matick-chat", "matick-codex",
@@ -108,9 +109,11 @@ class MatickHTTPServer(ThreadingHTTPServer):
         address: tuple[str, int],
         store: EventStore,
         tokens: dict[str, str],
+        provider: OpenAICompatibleProvider | None = None,
     ) -> None:
         self.store = store
         self.tokens = tokens.copy()
+        self.provider = provider if provider is not None else OpenAICompatibleProvider.from_env()
         super().__init__(address, MatickHandler)
 
 
@@ -124,6 +127,15 @@ class MatickHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.end_headers()
+        self.wfile.write(encoded)
+
+    def _respond_text(self, status: int | HTTPStatus, content: str) -> None:
+        encoded = content.encode("utf-8")
+        self.send_response(int(status))
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
         self.wfile.write(encoded)
@@ -146,7 +158,7 @@ class MatickHandler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.OK, {"service": "matick-studio-lm-cloud", "version": __version__, "status": "ok"})
             return
 
-        if route.path not in {"/v1/status", "/v1/events"}:
+        if route.path not in {"/v1/status", "/v1/events", "/v1/capabilities"}:
             self._respond(HTTPStatus.NOT_FOUND, {"error": "Ruta no encontrada"})
             return
 
@@ -159,6 +171,17 @@ class MatickHandler(BaseHTTPRequestHandler):
                 "actor": actor,
                 "transport": "http-polling",
                 "storage": "sqlite",
+            })
+            return
+
+        if route.path == "/v1/capabilities":
+            self._respond(HTTPStatus.OK, {
+                "actor": actor,
+                "chat": {"configured": self.server.provider.configured},
+                "events": {"configured": True},
+                "mcp": {"configured": False, "reason": "ToolHub funciona separado del servidor cloud"},
+                "devices": {"configured": False},
+                "cloud_model": self.server.provider.model if self.server.provider.configured else None,
             })
             return
 
@@ -176,7 +199,8 @@ class MatickHandler(BaseHTTPRequestHandler):
         self._respond(HTTPStatus.OK, {"actor": actor, "events": events})
 
     def do_POST(self) -> None:
-        if urlsplit(self.path).path != "/v1/events":
+        route = urlsplit(self.path).path
+        if route not in {"/v1/events", "/v1/chat"}:
             self._respond(HTTPStatus.NOT_FOUND, {"error": "Ruta no encontrada"})
             return
         actor = self._actor()
@@ -200,6 +224,38 @@ class MatickHandler(BaseHTTPRequestHandler):
         if not isinstance(data, dict):
             self._respond(HTTPStatus.BAD_REQUEST, {"error": "Se espera un objeto JSON"})
             return
+        if route == "/v1/chat":
+            messages = data.get("messages")
+            if not isinstance(messages, list) or not 1 <= len(messages) <= 12 or not all(
+                isinstance(m, dict)
+                and set(m) == {"role", "content"}
+                and m["role"] in ("user", "assistant")
+                and isinstance(m["content"], str)
+                and 1 <= len(m["content"]) <= 8000
+                for m in messages
+            ) or sum(len(m["content"]) for m in messages if isinstance(m, dict)
+                     and isinstance(m.get("content"), str)) > 12000:
+                self._respond(HTTPStatus.BAD_REQUEST, {
+                    "error": "messages debe contener 1..12 mensajes user/assistant, texto máximo 12k",
+                })
+                return
+            if messages[-1]["role"] != "user":
+                self._respond(HTTPStatus.BAD_REQUEST, {"error": "Último mensaje debe ser del usuario"})
+                return
+            try:
+                result = self.server.provider.respond(messages)
+            except ProviderUnavailable as exc:
+                self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
+                return
+            except ProviderResponseError as exc:
+                self._respond(HTTPStatus.BAD_GATEWAY, {"error": str(exc)})
+                return
+            if "text/plain" in self.headers.get("Accept", ""):
+                self._respond_text(HTTPStatus.OK, result["content"])
+            else:
+                self._respond(HTTPStatus.OK, result)
+            return
+
         target = data.get("target")
         kind = data.get("kind")
         payload = data.get("payload")

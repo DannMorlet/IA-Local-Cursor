@@ -12,21 +12,26 @@ import json
 import os
 import sys
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 
-def request(method: str, path: str, payload: dict | None = None) -> dict:
+def request(method: str, path: str, payload: dict | None = None, authenticated: bool = True) -> dict:
     base = os.environ.get("MATICK_CLOUD_URL", "http://127.0.0.1:8787").rstrip("/")
+    url = urlsplit(base)
+    if not url.hostname or url.scheme not in ("http", "https") or url.username or url.password or url.query or url.fragment:
+        raise ValueError("MATICK_CLOUD_URL inválida")
+    if url.scheme == "http" and url.hostname.lower() not in ("127.0.0.1", "localhost", "::1"):
+        raise ValueError("MATICK_CLOUD_URL remota requiere HTTPS")
     token = os.environ.get("MATICK_TOKEN", "")
-    if not token:
+    if authenticated and not token:
         raise ValueError("Define MATICK_TOKEN con el secreto de tu propio rol")
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8") if payload is not None else None
-    req = Request(
-        base + path, data=data, method=method,
-        headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"},
-    )
-    with urlopen(req, timeout=10) as response:
+    headers = {"Content-Type": "application/json"}
+    if authenticated:
+        headers["Authorization"] = "Bearer " + token
+    req = Request(base + path, data=data, method=method, headers=headers)
+    with urlopen(req, timeout=30) as response:
         return json.load(response)
 
 
@@ -41,6 +46,10 @@ def main() -> int:
     inbox.add_argument("--after", type=int, default=0)
     inbox.add_argument("--limit", type=int, default=50)
     commands.add_parser("status", help="Estado de la identidad autenticada")
+    commands.add_parser("health", help="Comprobar servidor sin credenciales")
+    commands.add_parser("capabilities", help="Funciones configuradas en la nube")
+    chat = commands.add_parser("chat", help="Preguntar al modelo configurado")
+    chat.add_argument("message", help="Mensaje del usuario; no ejecuta herramientas MCP")
     args = parser.parse_args()
     try:
         if args.command == "send":
@@ -54,6 +63,14 @@ def main() -> int:
             result = request("GET", "/v1/events?" + urlencode({
                 "after": args.after, "limit": args.limit,
             }))
+        elif args.command == "health":
+            result = request("GET", "/health", authenticated=False)
+        elif args.command == "capabilities":
+            result = request("GET", "/v1/capabilities")
+        elif args.command == "chat":
+            result = request("POST", "/v1/chat", {
+                "messages": [{"role": "user", "content": args.message}],
+            })
         else:
             result = request("GET", "/v1/status")
         print(json.dumps(result, indent=2, ensure_ascii=False))

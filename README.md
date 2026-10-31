@@ -2,13 +2,24 @@
 
 **Repositorio oficial del nuevo proyecto Matick Studio LM en la nube.** Es un producto independiente de LM Studio y no requiere instalar LM Studio para que su servidor de mensajes funcione.
 
-> Estado: **base técnica inicial (MVP)**. Incluye un bus HTTP con persistencia SQLite y pruebas, un cliente nativo de Windows que inicia DirectX 12 y consulta el estado de la nube, y CI para generar un ejecutable. **No** incluye todavía un modelo desplegado, conexión real con ChatGPT, skill Alexa publicada ni instalador final.
+> Estado: **vista previa 0.2 — chat ligero opcional**. Incluye un bus HTTP autenticado con SQLite, un proveedor HTTP de inferencia configurable, un ejecutable nativo DirectX 12 que puede enviar mensajes y un paquete portable de archivos permitidos. **No** incluye pesos/modelos ni un servidor cloud 24/7 desplegado, ni conexión real con ChatGPT, Alexa, reloj o un instalador final firmado.
+
+## 🥭 Versión ligera para GitHub y traslado posterior a tu PC
+
+**La nube de GitHub es el desarrollo principal**, distinto de la versión incompleta de `C:\IA\Matick Studio LM`. No copiamos sus 2273 archivos ni sus carpetas CUDA: evitamos trasladar encabezados, controladores, librerías de terceros, pesos, `node_modules` y datos sensibles.
+
+- **Chat real, condicionado:** el backend Python incluye `POST /v1/chat`, protegido por token de cliente, y `GET /v1/capabilities`. Se conecta a un proveedor OpenAI-compatible cuando tú lo configuras. No inventa respuestas si no está instalado/configurado el modelo.
+- **Cliente Windows:** el botón Enviar usa WinHTTP de Windows con token `MATICK_TOKEN`. Requiere `MATICK_CLOUD_URL` (por defecto local en puerto 8787). HTTPS obligatorio fuera del equipo local.
+- **Portabilidad:** GitHub Actions crea `MatickStudioLM-Windows-x64-Portable` con `.exe`, backend Python mínimo, ToolHub **sin dependencias instaladas** y un manifiesto SHA256.
+- **Migración no destructiva:** `tools/prepare_local_transfer.ps1` en modo normal **no copia nada**. Con `-Stage` crea una carpeta NUEVA separada y verifica hashes, sin cambiar tu versión local.
+
+📚 [Plan de traslado seguro y guía de inicio](docs/PLAN_CLOUD_A_PC.md).
 
 ## Diseño del tablero aprobado — vista DX12
 
 La referencia visual que aprobaste se está trasladando a la aplicación nativa: navegación oscura a la izquierda, zona de trabajo clara en el centro, tarjetas de seis frentes y modelos, y mascota a la derecha. Consulta [la especificación visual](docs/UI_REFERENCIA_MATICK.md).
 
-**Estado del prototipo visual:** los paneles y navegación de demostración están implementados; la mascota es un dibujo vectorial provisional que parpadea, **no todavía tu recurso original animado**. El campo de texto permite escribir, pero el botón de envío explica que el modelo aún no está conectado y no ejecuta tareas. Las conexiones de Alexa, ChatGPT y el reloj se marcan como pendientes hasta ser verificadas.
+**Estado del prototipo visual:** los paneles y navegación de demostración están implementados; la mascota es un dibujo vectorial provisional que parpadea, **no todavía tu recurso original animado**. El botón Enviar consulta `/v1/chat` con un token de sesión y muestra la respuesta **si un proveedor está configurado**. No ejecuta herramientas ni controla el equipo automáticamente. Las conexiones de Alexa, ChatGPT y el reloj se marcan como pendientes hasta ser verificadas.
 
 ## Bibliotecas centrales y herramientas MCP (integración inicial)
 
@@ -23,10 +34,10 @@ Se agregó [Matick ToolHub](integrations/toolhub/): un adaptador **opcional** de
 
 | Componente | Dónde corre | Responsabilidad |
 | --- | --- | --- |
-| `MatickStudioLM.exe` | Windows 11 | Ventana nativa y renderizado **Direct3D 12**. Comprueba conectividad con el servicio cloud. |
-| `matick_cloud` | Servidor / contenedor en la nube | API HTTP y entrega de mensajes entre clientes autenticados. |
+| `MatickStudioLM.exe` | Windows 11 | Ventana nativa Direct3D 12, estado de API, chat autenticado y respuesta si hay proveedor. |
+| `matick_cloud` | Servidor / contenedor en la nube | API HTTP de eventos y chat con proveedor configurable, sin dependencias extra. |
 | Matick Codex / Chat / Reloj / Alexa / ChatGPT | Integraciones futuras | Clientes separados con identidad y permisos propios. |
-| Modelo de IA | Infraestructura por elegir | La API **no** infiere ni ejecuta modelos todavía. |
+| Modelo de IA | Servicio de inferencia configurable | La API llama un modelo por HTTP cuando está configurado; **no** almacena ni ejecuta pesos por su cuenta. |
 
 **Importante:** GitHub aloja el código y puede compilar el `.exe` con Actions, pero **no** es un host persistente para el servidor cloud. Para acceso remoto, desplegar el contenedor en un host propio y configurar **HTTPS** con un proxy.
 
@@ -71,7 +82,7 @@ cmake --build out/build --config Release
 .\out\build\Release\MatickStudioLM.exe
 ```
 
-El cliente utiliza `MATICK_CLOUD_URL` para consultar `/health`; por defecto comprueba `http://127.0.0.1:8787`. Para la nube utiliza una URL **HTTPS** real de tu despliegue. La revisión actual muestra un panel nativo Direct3D 12 y el estado de conexión: la mensajería privada desde el ejecutable todavía es una integración pendiente.
+El cliente utiliza `MATICK_CLOUD_URL` para consultar `/health` y `MATICK_TOKEN` para enviar mensajes al endpoint `/v1/chat` cuando el backend tiene un modelo configurado. El valor por defecto de la URL es `http://127.0.0.1:8787`. Para nube remota se requiere **HTTPS**.
 
 GitHub Actions (pestaña **Actions**) también genera el artefacto `MatickStudioLM-Windows-x64` si la compilación concluye correctamente.
 
@@ -100,10 +111,10 @@ El ejemplo solo enlaza el puerto en localhost. Para producción: reverse proxy T
 | --- | --- |
 | API de mensajes bidireccionales entre roles permitidos | **Implementada** (polling + SQLite) |
 | Identidad por token de cada rol | **Implementada** (MVP) |
-| Windows `.exe` nativo DirectX 12 | **Código inicial**, falta validar CI |
+| Windows `.exe` nativo DirectX 12 | Renderizado, formulario y llamada de chat implementados; validar en la GPU del usuario |
 | ChatGPT ↔ Matick Studio LM | Contrato preparado, **no conectado** |
 | Alexa / Matick Reloj / Matick Codex / Matick Chat | Contrato preparado, **no conectados** |
-| Ejecución de modelos IA en la nube | **No implementada** |
+| Inferencia de modelos IA en la nube | Adaptador HTTP opcional implementado; **sin modelo ni host desplegados** |
 | Despliegue 24/7 y dominio | **No realizado** |
 
 **Migración:** el proyecto anterior `IA-Local-Cursor / GemCo-Joystick` quedó preservado en la rama de respaldo `backup/ia-local-cursor-antes-matick-studio-lm-20261030`. Esta rama `main` comienza de cero, sin reaprovechar el MCP anterior.
