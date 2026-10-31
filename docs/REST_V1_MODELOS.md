@@ -60,7 +60,7 @@ El identificador debe existir en el catálogo del proveedor, no asumas que `goog
 
 ## Parámetros validados
 
-Generación: `temperature` 0..1, `top_p` 0..1, `top_k` 1..500, `min_p` 0..1, `repeat_penalty` 0.5..2, `max_output_tokens` 16..8192, `context_length` 512..65536 y `reasoning` pendiente de exponer.
+Generación: `temperature` 0..1, `top_p` 0..1, `top_k` 1..500, `min_p` 0..1, `repeat_penalty` 0.5..2, `max_output_tokens` 16..8192, `context_length` 512..65536 y `reasoning` opcional ("off", "low", "medium", "high", "on"); el modelo decide por defecto para evitar incompatibilidades.
 
 Carga: `context_length` 512..65536, `eval_batch_size` 16..4096, `num_experts` 1..512, `flash_attention` booleano y `offload_kv_cache_to_gpu` booleano. Algunos modelos/motores no admiten todos los valores y devolverán un error real.
 

@@ -98,6 +98,7 @@ function formValues(){
     top_k:number("top_k"),min_p:number("min_p"),
     repeat_penalty:number("repeat_penalty"),reasoning:$("reasoning").value,
     max_output_tokens:number("max_output_tokens")};
+  if (!generation.reasoning) delete generation.reasoning;
   const load={context_length:number("context_length"),eval_batch_size:number("eval_batch_size"),
     flash_attention:$("flash_attention").checked,
     offload_kv_cache_to_gpu:$("offload_kv_cache_to_gpu").checked};
