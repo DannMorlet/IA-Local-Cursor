@@ -42,7 +42,9 @@ class RestMock(BaseHTTPRequestHandler):
             self._reply({"instance_id": data["instance_id"]})
         elif self.path == "/api/v1/chat":
             self._reply({"output": [{"type": "message", "content": "Respuesta v1: " + data["input"]}],
-                         "stats": {"tokens_per_second": 42}})
+                         "stats": {"tokens_per_second": 42},
+                         "response_id": "resp_demo_2026" if data.get("store") else None,
+                         "model_instance_id": "demo-instance"})
         elif self.path == "/api/v1/models/download":
             self._reply({"job_id": "job_1", "status": "downloading"})
         else:
@@ -112,6 +114,36 @@ class RestTests(unittest.TestCase):
                                                     "model": "google/gemma-demo"})
         self.assertIsNone(self.call("/v1/models/settings")["model"])
         self.assertIn("unloaded", unloaded)
+
+    def test_rest_v1_0428_stateful_and_metadata(self):
+        models = self.call("/v1/models")["models"]
+        self.assertEqual(models[0]["key"], "google/gemma-demo")
+        self.assertEqual(models[1]["loaded_instances"][0]["id"], "instance-1")
+        self.call("/v1/models/settings", {"model": "google/gemma-demo"})
+        first = self.call("/v1/chat", {
+            "stateful": True,
+            "messages": [{"role": "user", "content": "primer turno"}]
+        })
+        self.assertEqual(first["response_id"], "resp_demo_2026")
+        self.assertEqual(first["model_instance_id"], "demo-instance")
+        previous = self.call("/v1/chat", {
+            "stateful": True, "previous_response_id": first["response_id"],
+            "messages": [{"role": "user", "content": "primer turno"},
+                         {"role": "assistant", "content": "respuesta"},
+                         {"role": "user", "content": "segundo turno"}]
+        })
+        self.assertEqual(previous["response_id"], "resp_demo_2026")
+        upstream = RestMock.requests[-1][1]
+        self.assertEqual(upstream["input"], "segundo turno")
+        self.assertEqual(upstream["previous_response_id"], first["response_id"])
+        self.assertTrue(upstream["store"])
+        with self.assertRaises(HTTPError) as invalid:
+            self.call("/v1/chat", {
+                "previous_response_id": "../bad",
+                "stateful": True,
+                "messages": [{"role": "user", "content": "hola"}]
+            })
+        self.assertEqual(invalid.exception.code, 502)
 
     def test_permissions_and_invalid_parameters(self):
         with self.assertRaises(HTTPError) as denied:

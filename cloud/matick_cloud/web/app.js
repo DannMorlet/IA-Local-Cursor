@@ -1,6 +1,6 @@
 "use strict";
 const $ = id => document.getElementById(id);
-const state = { token:"", models:[], selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[] };
+const state = { token:"", models:[], selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null };
 function showMessage(message) {
   $("toast").textContent = String(message);
   $("toast").classList.remove("hidden");
@@ -58,6 +58,7 @@ async function refreshModels(){
   }catch(err){empty($("model-list"),"Sin conexión REST v1: "+err.message);}
 }
 function selectModel(id, fromSettings=false) {
+  if(state.selected!==id){state.chat=[];state.previousResponseId=null;state.conversationModel=null;}
   state.selected=id;
   $("model-id").value=id;
   $("model-current").textContent=id;
@@ -165,14 +166,31 @@ $("chat-form").addEventListener("submit",async e=>{
   $("prompt").value="";state.chat.push({role:"user",content:prompt});chatBubble("user",prompt);
   $("send-chat").disabled=true;
   try {
-    const response=await api("/v1/chat",{messages:state.chat.slice(-12)});
+    const stateful=$("stateful-chat").checked;
+    const request={messages:state.chat.slice(-12),stateful};
+    if(stateful && state.previousResponseId && state.conversationModel===state.selected)
+      request.previous_response_id=state.previousResponseId;
+    const response=await api("/v1/chat",request);
     chatBubble("assistant",response.content);
     state.chat.push({role:"assistant",content:response.content});
+    state.previousResponseId=stateful?(response.response_id||null):null;
+    state.conversationModel=state.selected;
+    const stats=response.stats||{};
+    const details=[];
+    if(Number.isFinite(stats.tokens_per_second))
+      details.push(Number(stats.tokens_per_second).toFixed(1)+" tokens/s");
+    if(Number.isFinite(stats.input_tokens)) details.push(stats.input_tokens+" tokens entrada");
+    if(Number.isFinite(stats.total_output_tokens)) details.push(stats.total_output_tokens+" tokens salida");
+    $("chat-stats").textContent=details.join(" · ")||"Respuesta recibida";
   }catch(err){chatBubble("assistant","No se generó una respuesta: "+err.message);}
   finally{$("send-chat").disabled=false;}
 });
 $("prompt").addEventListener("keydown",e=>{if(e.key==="Enter" && e.ctrlKey){e.preventDefault();$("chat-form").requestSubmit();}});
-$("clear-chat").addEventListener("click",()=>{state.chat=[];empty($("conversation"),"Nueva conversación lista.");});
+$("clear-chat").addEventListener("click",()=>{
+  state.chat=[];state.previousResponseId=null;state.conversationModel=null;
+  $("chat-stats").textContent="Nueva conversación sin historial";
+  empty($("conversation"),"Nueva conversación lista.");
+});
 async function refreshTasks(){
   try {
     const data=await api("/v1/tasks");state.tasks=data.tasks||[];

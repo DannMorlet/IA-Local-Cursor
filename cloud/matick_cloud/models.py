@@ -16,7 +16,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-MODEL_ID = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._/:-]{0,191}$")
+MODEL_ID = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._/@:-]{0,191}$")
 PARAMS = {
     "temperature": ("float", 0, 1),
     "top_p": ("float", 0, 1),
@@ -139,13 +139,17 @@ class RestV1Bridge:
         return [
             {"key": row.get("key"), "name": row.get("display_name"),
              "type": row.get("type"), "size_bytes": row.get("size_bytes"),
+             "quantization": (row.get("quantization") or {}).get("name")
+               if isinstance(row.get("quantization"), dict) else None,
+             "loaded_instances": row.get("loaded_instances", []),
+             "publisher": row.get("publisher"),
              "architecture": row.get("architecture"),
              "format": row.get("format"),
              "params_string": row.get("params_string"),
              "max_context_length": row.get("max_context_length"),
-             "quantization": (row.get("quantization") or {}).get("name")
-               if isinstance(row.get("quantization"), dict) else None,
-             "loaded_instances": row.get("loaded_instances", [])}
+             "capabilities": row.get("capabilities") if isinstance(row.get("capabilities"), dict) else {},
+             "variants": row.get("variants", []),
+             "selected_variant": row.get("selected_variant")}
             for row in models[:300]
             if isinstance(row, dict) and isinstance(row.get("key"), str)
         ]
@@ -179,23 +183,42 @@ class RestV1Bridge:
             raise ValueError("ID de descarga inválido")
         return self.request("/api/v1/models/download/status/" + job_id)
 
-    def chat(self, model, messages, params):
+    def chat(self, model, messages, params, previous_response_id=None, stateful=False):
         valid_model_id(model)
         options = valid_params(params, PARAMS)
-        prompt = "\n".join("%s: %s" % (m["role"], m["content"]) for m in messages)
+        if type(stateful) is not bool:
+            raise ValueError("stateful debe ser booleano")
+        if previous_response_id is not None and (
+            not stateful or not isinstance(previous_response_id, str)
+            or not re.fullmatch(r"resp_[a-zA-Z0-9_-]{1,128}", previous_response_id)
+        ):
+            raise ValueError("previous_response_id inválido")
+        # REST nativo v1: con sesión, reenviar solo el turno actual.
+        prompt = messages[-1]["content"] if previous_response_id else "\n".join(
+            "%s: %s" % (m["role"], m["content"]) for m in messages
+        )
         payload = {
-            "model": model, "input": prompt, "stream": False, "store": False,
+            "model": model, "input": prompt, "stream": False, "store": stateful,
             "system_prompt": "Eres Matick Studio LM. Sé útil, cuidadoso y no inventes integraciones.",
             **options,
         }
+        if previous_response_id:
+            payload["previous_response_id"] = previous_response_id
         result = self.request("/api/v1/chat", payload)
         texts = [item.get("content", "") for item in result.get("output", [])
                  if isinstance(item, dict) and item.get("type") == "message"
                  and isinstance(item.get("content"), str)]
         if not texts:
             raise ModelError("El modelo no devolvió texto de respuesta")
-        return {"model": model, "content": "\n".join(texts)[:12000],
-                "stats": result.get("stats", {})}
+        response = {"model": model, "content": "\n".join(texts)[:12000],
+                    "stats": result.get("stats", {}),
+                    "model_instance_id": result.get("model_instance_id")}
+        identifier = result.get("response_id")
+        if stateful and isinstance(identifier, str) and re.fullmatch(
+            r"resp_[a-zA-Z0-9_-]{1,128}", identifier
+        ):
+            response["response_id"] = identifier
+        return response
 
 
 class ModelState:

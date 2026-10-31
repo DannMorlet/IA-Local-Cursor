@@ -346,11 +346,18 @@ class MatickHandler(BaseHTTPRequestHandler):
                 state = self.server.model_state.get()
                 model = data.get("model", state["model"])
                 params = data.get("parameters", state["generation"])
+                stateful = data.get("stateful", False)
+                previous = data.get("previous_response_id")
                 if self.server.rest.configured:
                     if not model:
                         raise ProviderUnavailable("Selecciona un modelo en /v1/models/settings")
-                    result = self.server.rest.chat(model, messages, params)
+                    result = self.server.rest.chat(
+                        model, messages, params, previous_response_id=previous,
+                        stateful=stateful
+                    )
                 else:
+                    if previous is not None or stateful:
+                        raise ValueError("Sesiones nativas REST v1 no disponibles con el proveedor alternativo")
                     if model and model != self.server.provider.model:
                         raise ProviderUnavailable("El proveedor alternativo no tiene ese modelo seleccionado")
                     # El proveedor OpenAI-compatible es respaldo; sin inferencia nativa activa.
