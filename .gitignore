@@ -25,3 +25,9 @@ __pycache__/
 .env.*
 !.env.example
 .DS_Store
+
+# Matick ToolHub MCP local
+integrations/toolhub/node_modules/
+integrations/toolhub/mcp.json
+integrations/toolhub/mcp.local.json
+integrations/toolhub/.env

@@ -43,3 +43,14 @@ jobs:
           path: out/build/Release/MatickStudioLM.exe
           if-no-files-found: error
           retention-days: 30
+
+  toolhub:
+    name: Matick ToolHub / pruebas SDK mock + MCP stdio
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Comprobar registro MCP y adaptador sin servidores externos
+        run: node --test integrations/toolhub/tests/*.test.mjs
