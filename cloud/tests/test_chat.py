@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import tempfile
@@ -11,6 +13,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from matick_cloud.provider import OpenAICompatibleProvider, ProviderUnavailable
+from matick_cloud.client import request as client_request
 from matick_cloud.server import EventStore, MatickHTTPServer
 
 
@@ -102,6 +105,24 @@ class ChatContractTests(unittest.TestCase):
         with self.assertRaises(HTTPError) as missing:
             self.request("/v1/chat", {"messages": [{"role": "user", "content": "Hola"}]})
         self.assertEqual(missing.exception.code, 503)
+
+    def test_cli_chat_and_https_enforcement(self):
+        env = {"MATICK_CLOUD_URL": self.base,
+               "MATICK_TOKEN": "local-windows-token-12345"}
+        with patch.dict(os.environ, env):
+            self.assertEqual(
+                client_request("POST", "/v1/chat",
+                    {"messages": [{"role": "user", "content": "mensaje CLI"}]})["content"],
+                "Matick respondió: mensaje CLI"
+            )
+            capabilities = client_request("GET", "/v1/capabilities")
+            self.assertTrue(capabilities["chat"]["configured"])
+        with patch.dict(os.environ, {
+            "MATICK_CLOUD_URL": "http://192.168.1.5:8787",
+            "MATICK_TOKEN": "secret",
+        }):
+            with self.assertRaises(ValueError):
+                client_request("GET", "/v1/status")
 
     def test_provider_url_policy(self):
         for rejected in ("http://10.0.0.1:1234/v1", "http://host.example/v1",
