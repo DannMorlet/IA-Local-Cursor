@@ -29,6 +29,7 @@ HWND gPageSubtitle = nullptr;
 HWND gChatInput = nullptr;
 UINT gTick = 0;
 CloudConnectionState gConnectionState = CloudConnectionState::NoConfigurado;
+bool gStatusInitialized = false;
 
 COLORREF ConnectionColor() {
     switch (gConnectionState) {
@@ -279,7 +280,8 @@ LRESULT DashboardControlColor(HDC dc, HWND control) {
 }
 
 void DashboardSetCloudStatus(CloudConnectionState state) {
-    if (gConnectionState == state) return;
+    if (gStatusInitialized && gConnectionState == state) return;
+    gStatusInitialized = true;
     gConnectionState = state;
     const wchar_t* headline = L"API: sin configurar";
     const wchar_t* detail = L"Configura URL / inicia servidor";
