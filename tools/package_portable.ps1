@@ -25,6 +25,11 @@ foreach ($relative in @(
     'cloud/matick_cloud/__main__.py',
     'cloud/matick_cloud/server.py',
     'cloud/matick_cloud/provider.py',
+    'cloud/matick_cloud/models.py',
+    'cloud/matick_cloud/tasks.py',
+    'cloud/matick_cloud/web/index.html',
+    'cloud/matick_cloud/web/style.css',
+    'cloud/matick_cloud/web/app.js',
     'cloud/matick_cloud/client.py',
     'cloud/.env.example',
     'integrations/toolhub/package.json',
@@ -34,6 +39,7 @@ foreach ($relative in @(
     'integrations/toolhub/src/mcp-stdio.mjs',
     'integrations/toolhub/src/registry.mjs',
     'docs/PLAN_CLOUD_A_PC.md',
+    'docs/REST_V1_MODELOS.md',
     'tools/prepare_local_transfer.ps1',
     'tools/start_matick_portable.ps1'
 )) {
@@ -46,7 +52,7 @@ if ($bad) { throw "Distribución contiene carpetas prohibidas" }
 $items = Get-ChildItem -LiteralPath $target -File -Recurse
 $manifest = [ordered]@{
     name = 'Matick Studio LM'
-    package_version = '0.2.0-preview'
+    package_version = '1.0.0'
     independent_from_local_project = $true
     generated_utc = (Get-Date).ToUniversalTime().ToString('o')
     files = @($items | ForEach-Object {

@@ -19,6 +19,7 @@ from urllib.parse import parse_qs, urlsplit
 from . import __version__
 from .provider import OpenAICompatibleProvider, ProviderResponseError, ProviderUnavailable
 from .models import RestV1Bridge, ModelState, ModelOffline, ModelError, valid_params, PARAMS, LOAD_PARAMS, valid_model_id
+from .tasks import TaskStore
 
 ROLES = frozenset({
     "matick-studio-lm", "chatgpt", "matick-chat", "matick-codex",
@@ -118,6 +119,7 @@ class MatickHTTPServer(ThreadingHTTPServer):
         self.provider = provider if provider is not None else OpenAICompatibleProvider.from_env()
         self.rest = rest if rest is not None else RestV1Bridge.from_env()
         self.model_state = ModelState(store.path)
+        self.tasks = TaskStore(store.path)
         super().__init__(address, MatickHandler)
 
 
@@ -158,11 +160,35 @@ class MatickHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         route = urlsplit(self.path)
+        web_routes = {"/app": ("index.html", "text/html; charset=utf-8"),
+                      "/app/app.js": ("app.js", "text/javascript; charset=utf-8"),
+                      "/app/style.css": ("style.css", "text/css; charset=utf-8")}
+        if route.path in web_routes:
+            filename, mime = web_routes[route.path]
+            location = Path(__file__).parent / "web" / filename
+            try:
+                payload = location.read_bytes()
+            except OSError:
+                self._respond(HTTPStatus.NOT_FOUND, {"error": "Panel no instalado"})
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", mime)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Security-Policy",
+                             "default-src 'none'; base-uri 'none'; form-action 'none'; "
+                             "script-src 'self'; style-src 'self'; connect-src 'self'; "
+                             "img-src 'self'; frame-ancestors 'none'")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
         if route.path == "/health":
             self._respond(HTTPStatus.OK, {"service": "matick-studio-lm-cloud", "version": __version__, "status": "ok"})
             return
 
-        if route.path not in {"/v1/status", "/v1/events", "/v1/capabilities", "/v1/models", "/v1/models/settings"}:
+        if route.path not in {"/v1/status", "/v1/events", "/v1/capabilities", "/v1/models", "/v1/models/settings", "/v1/tasks"}:
             self._respond(HTTPStatus.NOT_FOUND, {"error": "Ruta no encontrada"})
             return
 
@@ -190,6 +216,9 @@ class MatickHandler(BaseHTTPRequestHandler):
             })
             return
 
+        if route.path == "/v1/tasks":
+            self._respond(HTTPStatus.OK, {"tasks": self.server.tasks.list()})
+            return
         if route.path == "/v1/models/settings":
             self._respond(HTTPStatus.OK, self.server.model_state.get())
             return
@@ -222,7 +251,7 @@ class MatickHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         route = urlsplit(self.path).path
-        if route not in {"/v1/events", "/v1/chat", "/v1/models/settings", "/v1/models/load", "/v1/models/unload", "/v1/models/download"}:
+        if route not in {"/v1/events", "/v1/chat", "/v1/models/settings", "/v1/models/load", "/v1/models/unload", "/v1/models/download", "/v1/tasks", "/v1/tasks/status"}:
             self._respond(HTTPStatus.NOT_FOUND, {"error": "Ruta no encontrada"})
             return
         actor = self._actor()
@@ -245,6 +274,19 @@ class MatickHandler(BaseHTTPRequestHandler):
 
         if not isinstance(data, dict):
             self._respond(HTTPStatus.BAD_REQUEST, {"error": "Se espera un objeto JSON"})
+            return
+        if route in ("/v1/tasks", "/v1/tasks/status"):
+            if actor not in ("matick-studio-lm", "windows-dx12"):
+                self._respond(HTTPStatus.FORBIDDEN, {"error": "Sin permiso para modificar tareas"})
+                return
+            try:
+                result = (self.server.tasks.create(data.get("title"), data.get("detail", ""))
+                    if route == "/v1/tasks" else
+                    self.server.tasks.set_status(data.get("id"), data.get("status")))
+            except ValueError as exc:
+                self._respond(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._respond(HTTPStatus.CREATED if route == "/v1/tasks" else HTTPStatus.OK, result)
             return
         if route.startswith("/v1/models/"):
             if actor not in {"matick-studio-lm", "windows-dx12"}:

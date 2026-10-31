@@ -2,7 +2,17 @@
 
 **Repositorio oficial del nuevo proyecto Matick Studio LM en la nube.** Es un producto independiente de LM Studio y no requiere instalar LM Studio para que su servidor de mensajes funcione.
 
-> Estado: **vista previa 0.2 — chat ligero opcional**. Incluye un bus HTTP autenticado con SQLite, un proveedor HTTP de inferencia configurable, un ejecutable nativo DirectX 12 que puede enviar mensajes y un paquete portable de archivos permitidos. **No** incluye pesos/modelos ni un servidor cloud 24/7 desplegado, ni conexión real con ChatGPT, Alexa, reloj o un instalador final firmado.
+> Estado: **Matick Studio LM Cloud v1.0 — software ejecutable y comprobable**. Incluye un bus HTTP autenticado con SQLite, un proveedor HTTP de inferencia configurable, un ejecutable nativo DirectX 12 que puede enviar mensajes y un paquete portable de archivos permitidos. **No** incluye pesos/modelos, despliegue cloud 24/7, conexión real con ChatGPT/Alexa/reloj, agente Codex que ejecuta código ni un instalador firmado.
+
+## Matick Studio LM Cloud v1.0 — Work y modelos
+
+**Panel de trabajo tipo Codex (inspiración visual, no código de OpenAI):** iniciar servidor Python, abrir `http://127.0.0.1:8787/app`. Introducir el token del rol Windows o Studio: solo se guarda en la memoria de la pestaña y no se escribe en disco del navegador. Incluye trabajo/tablero persistente, chat, administrador de modelos y estado de herramientas.
+
+**REST v1 de LM Studio (opcional):** configura `MATICK_REST_V1_URL=http://127.0.0.1:1234` cuando tengas el servidor 0.4+ iniciado. Desde Matick Work podrás consultar modelos, seleccionar uno, ajustar contexto, temperatura, Top P, Top K, Flash Attention, batch, tokens de salida, cargar y descargar de RAM. Los parámetros se guardan en SQLite de Matick. La inferencia usa `POST /api/v1/chat` del proveedor. Matick continúa siendo independiente de LM Studio: sin adaptador, funciona el tablero y el bus; también existe proveedor alternativo OpenAI-compatible.
+
+**Descarga de nuevos modelos:** se solicita con `POST /v1/models/download`; está desactivada por defecto y solo se permite al habilitar `MATICK_ALLOW_MODEL_DOWNLOADS=1` en el servidor, para evitar consumir GB inesperadamente. Los modelos quedan en el almacenamiento del proveedor, nunca en el repositorio.
+
+[Guía de API REST v1 y parámetros](docs/REST_V1_MODELOS.md).
 
 ## 🥭 Versión ligera para GitHub y traslado posterior a tu PC
 
