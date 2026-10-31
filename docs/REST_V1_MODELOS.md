@@ -73,3 +73,11 @@ Carga: `context_length` 512..65536, `eval_batch_size` 16..4096, `num_experts` 1.
 - La mascota vectorial del panel es provisional. La original del usuario no está empaquetada.
 - El backend está pensado para instancia única. Antes de un despliegue público: proxy HTTPS, gestión de secretos, limitación de peticiones y almacenamiento protegido.
 - La instalación portable contiene fuentes ligeros, servidor y EXE; no contiene modelos, CUDA, SDKs ni `node_modules`.
+
+## Compatibilidad confirmada al 31 de octubre de 2026
+
+El changelog oficial de LM Studio establece la última versión en **0.4.28 Build 2 (31/10/2026)**, con ajustes de plantillas Flint y actualización de macOS. Se conserva el conector REST v1 para modelos, chat, descarga, carga y liberación, más información del catálogo (cuantización, arquitectura, parámetros y contexto máximo). La rama 0.4.27 mejoró LM Link/runtime y 0.4.26 añadió los endpoints opcionales /v1/decisions y /v1/systemone, que **no están activados ni se presentan como parte de nuestra API de Matick**.
+
+Documentación oficial: https://lmstudio.ai/changelog/lmstudio y https://lmstudio.ai/docs/developer/rest
+
+Si el modelo no admite un parámetro, el proveedor debe devolver un error; no hay manera segura de prometer que Flash Attention/NPU/reasoning funcionan en todos los modelos. El SDK lmstudio-js y Matick REST v1 son vías distintas de conexión.

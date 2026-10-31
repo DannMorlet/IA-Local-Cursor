@@ -84,7 +84,11 @@ function renderModels(){
     const btn=document.createElement("button");btn.className="model-row"+(state.selected===model.key?" selected":"");
     const title=document.createElement("strong");title.textContent=model.name||model.key;
     const detail=document.createElement("small");const instances=Array.isArray(model.loaded_instances)?model.loaded_instances.length:0;
-    detail.textContent=model.key+" · "+(model.type||"llm")+" · "+(instances?"Cargado":"No cargado");
+    detail.textContent=model.key+" · "+(model.type||"llm")
+      +(model.params_string?" · "+model.params_string:"")
+      +(model.quantization?" · "+model.quantization:"")
+      +(model.max_context_length?" · "+model.max_context_length+" ctx":"")
+      +" · "+(instances?"Cargado":"No cargado");
     btn.append(title,detail);btn.addEventListener("click",()=>selectModel(model.key));
     container.append(btn);
   }

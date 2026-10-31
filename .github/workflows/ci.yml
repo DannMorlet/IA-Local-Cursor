@@ -27,6 +27,8 @@ jobs:
         env:
           PYTHONPATH: tools
         run: python -m unittest discover -s tools/tests -v
+      - name: Sintaxis del auditor de Windows
+        run: python -m compileall -q tools/auditar_matick_pc.py
 
   windows-dx12:
     name: Compilar interfaz DirectX 12 x64

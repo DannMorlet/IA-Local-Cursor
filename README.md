@@ -4,6 +4,12 @@
 
 > Estado: **Matick Studio LM Cloud v1.0 — software ejecutable y comprobable**. Incluye un bus HTTP autenticado con SQLite, un proveedor HTTP de inferencia configurable, un ejecutable nativo DirectX 12 que puede enviar mensajes y un paquete portable de archivos permitidos. **No** incluye pesos/modelos, despliegue cloud 24/7, conexión real con ChatGPT/Alexa/reloj, agente Codex que ejecuta código ni un instalador firmado.
 
+## Auditoría de MORLET-GAMING: puntuación 1..100
+
+Para verificar la instalación **local** de `C:\IA\Matick Studio LM`, se incluye el [auditor Python solo lectura](tools/auditar_matick_pc.py) y un [lanzador de Windows](tools/Auditar_Matick_PC.cmd). Inventaría todos los archivos por metadatos, analiza sintaxis Python/JSON, MCP, cabecera PE y conectividad local opcional. Guarda reporte Markdown y un JSON de inventario en **Descargas**, nunca dentro del proyecto. La calificación mide verificaciones superadas, no garantiza el 100 % del funcionamiento.
+
+[Instrucciones y límites de la auditoría](docs/AUDITORIA_PC_1_A_100.md).
+
 ## Matick Studio LM Cloud v1.0 — Work y modelos
 
 **Panel de trabajo tipo Codex (inspiración visual, no código de OpenAI):** iniciar servidor Python, abrir `http://127.0.0.1:8787/app`. Introducir el token del rol Windows o Studio: solo se guarda en la memoria de la pestaña y no se escribe en disco del navegador. Incluye trabajo/tablero persistente, chat, administrador de modelos y estado de herramientas.
