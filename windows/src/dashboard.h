@@ -10,3 +10,7 @@ void DashboardCommand(HWND window, UINT commandId);
 void DashboardTick();
 void DashboardSetCloudStatus(bool healthy);
 void DashboardShutdown();
+
+// Se usa para la solicitud de chat asíncrona; sin dependencias externas.
+std::wstring DashboardReadChatInput();
+void DashboardSetChatResponse(const std::wstring& result, bool ok);

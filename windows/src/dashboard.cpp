@@ -26,6 +26,7 @@ HWND gApiStatus = nullptr;
 HWND gPageTitle = nullptr;
 HWND gPageSubtitle = nullptr;
 HWND gChatInput = nullptr;
+HWND gChatOutput = nullptr;
 UINT gTick = 0;
 bool gCloudHealthy = false;
 
@@ -189,7 +190,7 @@ void DashboardInstall(HWND window, HINSTANCE instance) {
     gPageTitle = Label(window, instance, 70, L"Matick Studio LM", 327, 120, 778, 49, 31, FW_BOLD);
     gPageSubtitle = Label(window, instance, 71, L"¿En qué trabajamos hoy?", 327, 171, 810, 37, 23);
     Label(window, instance, 72, L"Chat  ·  Codex  ·  Analizar archivos  ·  Crear proyecto  ·  Control del PC", 327, 228, 806, 31, 17);
-    Label(window, instance, 73, L"Escribe una instrucción (el motor de IA todavía no está conectado):", 328, 283, 816, 25, 15);
+    Label(window, instance, 73, L"Chat en la nube  ·  requiere MATICK_TOKEN y proveedor configurado:", 328, 283, 816, 25, 15);
     gChatInput = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
         329, 318, 641, 40, window, reinterpret_cast<HMENU>(200), instance, nullptr);
@@ -199,7 +200,7 @@ void DashboardInstall(HWND window, HINSTANCE instance) {
         990, 318, 132, 40, window,
         reinterpret_cast<HMENU>(201), instance, nullptr);
     SendMessageW(send, WM_SETFONT, reinterpret_cast<WPARAM>(NewFont(17, FW_SEMIBOLD)), TRUE);
-    Label(window, instance, 74, L"API Cloud: prueba de conexión a /health    |    IA: sin desplegar", 329, 377, 818, 27, 16);
+    Label(window, instance, 74, L"Chat: solo funciona al configurar un modelo. /health no prueba IA.", 329, 377, 818, 27, 16);
 
     Label(window, instance, 80, L"6 FRENTES DE TRABAJO  ·  NO ACTIVOS AÚN", 324, 472, 520, 28, 18, FW_BOLD);
     Label(window, instance, 81, L"Arquitectura", 334, 526, 158, 26, 17, FW_SEMIBOLD);
@@ -214,8 +215,12 @@ void DashboardInstall(HWND window, HINSTANCE instance) {
     Label(window, instance, 93, L"Phi / NPU          pendiente", 896, 635, 261, 28, 16);
     Label(window, instance, 94, L"Sin modelo cloud conectado", 896, 702, 260, 29, 15);
     Label(window, instance, 100, L"ACTIVIDAD RECIENTE", 324, 702, 500, 28, 18, FW_BOLD);
-    Label(window, instance, 101, L"Interfaz DX12: actualización visual en desarrollo", 324, 747, 519, 28, 16);
-    Label(window, instance, 102, L"Conectores externos: pendientes de implementar", 324, 778, 528, 24, 15);
+    gChatOutput = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT",
+        L"Respuestas de Matick Cloud aparecerán aquí. Sin modelo configurado, se indicará el error.",
+        WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_READONLY |
+        ES_AUTOVSCROLL | WS_VSCROLL,
+        323, 741, 530, 61, window, reinterpret_cast<HMENU>(202), instance, nullptr);
+    SendMessageW(gChatOutput, WM_SETFONT, reinterpret_cast<WPARAM>(NewFont(15)), TRUE);
 
     // Panel derecho: mascota y telemetría sin métricas inventadas.
     Label(window, instance, 120, L"MATICK  ·  MASCOTA", 1202, 89, 278, 30, 20, FW_BOLD);
@@ -305,10 +310,7 @@ void DashboardCommand(HWND window, UINT id) {
             SetPage(L"Trabajo", L"Panel de tareas en desarrollo.");
             break;
         case 201:
-            MessageBoxW(window,
-                L"El diseño y el campo de texto ya funcionan, pero aún falta conectar un motor de IA.\n"
-                L"No se envió información ni se ejecutaron acciones.",
-                L"Matick Studio LM - Prototipo visual", MB_OK | MB_ICONINFORMATION);
+            PostMessageW(window, WM_APP + 2, 0, 0);
             break;
         default:
             break;
@@ -329,4 +331,23 @@ void DashboardShutdown() {
     if (gRightBrush) DeleteObject(gRightBrush);
     if (gLightBrush) DeleteObject(gLightBrush);
     if (gWhiteBrush) DeleteObject(gWhiteBrush);
+}
+
+std::wstring DashboardReadChatInput() {
+    if (!gChatInput) return {};
+    const int size = GetWindowTextLengthW(gChatInput);
+    if (size <= 0 || size > 3000) return {};
+    std::wstring text(static_cast<size_t>(size) + 1, L'\0');
+    GetWindowTextW(gChatInput, &text[0], size + 1);
+    text.resize(static_cast<size_t>(size));
+    return text;
+}
+
+void DashboardSetChatResponse(const std::wstring& result, bool ok) {
+    if (!gChatOutput) return;
+    const std::wstring output = result.size() > 12000
+        ? result.substr(0, 12000) : result;
+    SetWindowTextW(gChatOutput, output.c_str());
+    SendMessageW(gChatOutput, EM_SETSEL, 0, 0);
+    (void)ok;
 }
