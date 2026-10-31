@@ -23,11 +23,22 @@ HBRUSH gWhiteBrush = nullptr;
 std::vector<HFONT> gFonts;
 HWND gMascot = nullptr;
 HWND gApiStatus = nullptr;
+HWND gAuthStatus = nullptr;
 HWND gPageTitle = nullptr;
 HWND gPageSubtitle = nullptr;
 HWND gChatInput = nullptr;
 UINT gTick = 0;
-bool gCloudHealthy = false;
+CloudConnectionState gConnectionState = CloudConnectionState::NoConfigurado;
+bool gStatusInitialized = false;
+
+COLORREF ConnectionColor() {
+    switch (gConnectionState) {
+        case CloudConnectionState::Conectado: return RGB(75, 229, 147);
+        case CloudConnectionState::SinSesion: return RGB(255, 192, 79);
+        case CloudConnectionState::Desconectado: return RGB(248, 104, 109);
+        default: return RGB(156, 166, 180);
+    }
+}
 
 HFONT NewFont(int pixelSize, int weight = FW_NORMAL) {
     HFONT font = CreateFontW(-pixelSize, 0, 0, 0, weight,
@@ -118,6 +129,17 @@ LRESULT CALLBACK MascotProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 Shape(dc, face, quietPen, 176, 105, 207, 122, 14);
             }
             Shape(dc, turquoise, quietPen, 131, 150, 164, 158, 9);
+
+            // Indicador sutil de la API, no de los modelos ni conectores externos.
+            // Para los estados degradados el aro parpadea sin cambiar el texto accesible.
+            const bool mutedPhase = gConnectionState != CloudConnectionState::Conectado
+                && (gTick / 16) % 2 == 1;
+            const COLORREF badgeColor = mutedPhase ? RGB(70, 82, 100) : ConnectionColor();
+            HBRUSH badge = CreateSolidBrush(badgeColor);
+            HPEN badgePen = CreatePen(PS_SOLID, 2, RGB(7, 19, 39));
+            Shape(dc, badge, badgePen, 246, 216, 272, 242);
+            DeleteObject(badge);
+            DeleteObject(badgePen);
 
             DeleteObject(quietPen);
             DeleteObject(glowPen);
@@ -225,10 +247,11 @@ void DashboardInstall(HWND window, HINSTANCE instance) {
     Label(window, instance, 121, L"¡Aquí ando!   ◡̈", 1224, 425, 238, 30, 20, FW_BOLD);
     Label(window, instance, 125, L"Parpadeo animado  ·  avatar provisional", 1204, 451, 276, 22, 13);
     Label(window, instance, 123, L"ESTADO DE CONEXIÓN", 1212, 496, 267, 27, 18, FW_BOLD);
-    gApiStatus = Label(window, instance, 122, L"API: comprobando...", 1213, 541, 265, 27, 17, FW_SEMIBOLD);
-    Label(window, instance, 126, L"ChatGPT: no integrado", 1213, 584, 261, 26, 16);
-    Label(window, instance, 127, L"Alexa: no integrada", 1213, 621, 261, 26, 16);
-    Label(window, instance, 128, L"Reloj: no integrado", 1213, 658, 261, 26, 16);
+    gApiStatus = Label(window, instance, 122, L"API: comprobando...", 1213, 535, 266, 27, 16, FW_SEMIBOLD);
+    gAuthStatus = Label(window, instance, 131, L"F5: comprobar conexión", 1213, 560, 266, 22, 14);
+    Label(window, instance, 126, L"ChatGPT: no integrado", 1213, 591, 261, 26, 16);
+    Label(window, instance, 127, L"Alexa: no integrada", 1213, 625, 261, 26, 16);
+    Label(window, instance, 128, L"Reloj: no integrado", 1213, 659, 261, 26, 16);
     Label(window, instance, 129, L"Matick Codex: pendiente", 1213, 695, 264, 26, 16);
     Label(window, instance, 130, L"GPU / CPU / NPU: sin lecturas", 1213, 746, 267, 30, 15);
 }
@@ -238,7 +261,7 @@ LRESULT DashboardControlColor(HDC dc, HWND control) {
     SetBkMode(dc, OPAQUE);
     if (id >= 120) {
         SetBkColor(dc, kRight);
-        SetTextColor(dc, id == 122 && gCloudHealthy ? RGB(80, 239, 160) : RGB(222, 240, 246));
+        SetTextColor(dc, id == 122 ? ConnectionColor() : RGB(222, 240, 246));
         return reinterpret_cast<LRESULT>(gRightBrush);
     }
     if (id >= 70) {
@@ -256,14 +279,37 @@ LRESULT DashboardControlColor(HDC dc, HWND control) {
     return reinterpret_cast<LRESULT>(gDarkBrush);
 }
 
-void DashboardSetCloudStatus(bool healthy) {
-    gCloudHealthy = healthy;
+void DashboardSetCloudStatus(CloudConnectionState state) {
+    if (gStatusInitialized && gConnectionState == state) return;
+    gStatusInitialized = true;
+    gConnectionState = state;
+    const wchar_t* headline = L"API: sin configurar";
+    const wchar_t* detail = L"Configura URL / inicia servidor";
+    switch (state) {
+        case CloudConnectionState::Conectado:
+            headline = L"API: sesión autenticada";
+            detail = L"Otros conectores: pendientes";
+            break;
+        case CloudConnectionState::SinSesion:
+            headline = L"API: activa, sin sesión";
+            detail = L"Configura o valida tu token";
+            break;
+        case CloudConnectionState::Desconectado:
+            headline = L"API: desconectada";
+            detail = L"Reintentando... (F5 para revisar)";
+            break;
+        case CloudConnectionState::NoConfigurado:
+            break;
+    }
     if (gApiStatus) {
-        SetWindowTextW(gApiStatus, healthy
-            ? L"API cloud: accesible /health"
-            : L"API cloud: desconectada");
+        SetWindowTextW(gApiStatus, headline);
         InvalidateRect(gApiStatus, nullptr, TRUE);
     }
+    if (gAuthStatus) {
+        SetWindowTextW(gAuthStatus, detail);
+        InvalidateRect(gAuthStatus, nullptr, TRUE);
+    }
+    if (gMascot) InvalidateRect(gMascot, nullptr, FALSE);
 }
 
 void DashboardCommand(HWND window, UINT id) {

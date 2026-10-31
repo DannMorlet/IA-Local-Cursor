@@ -8,5 +8,12 @@ void DashboardInstall(HWND window, HINSTANCE instance);
 LRESULT DashboardControlColor(HDC dc, HWND control);
 void DashboardCommand(HWND window, UINT commandId);
 void DashboardTick();
-void DashboardSetCloudStatus(bool healthy);
+// Estado del servicio cloud y de su sesión autenticada (no de los demás conectores).
+enum class CloudConnectionState {
+    NoConfigurado = 0,
+    Desconectado = 1,
+    SinSesion = 2,
+    Conectado = 3,
+};
+void DashboardSetCloudStatus(CloudConnectionState state);
 void DashboardShutdown();

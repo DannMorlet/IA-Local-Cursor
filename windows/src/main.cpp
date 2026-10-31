@@ -205,58 +205,90 @@ std::wstring CloudURL() {
     return value;
 }
 
-bool IsCloudHealthy(const std::wstring& base) {
+// Devuelve solo el código HTTP; 0 significa error de red o configuración.
+int CloudResponseCode(const std::wstring& base, const wchar_t* suffix,
+                      const std::wstring& token = L"") {
     URL_COMPONENTS parts = {};
     parts.dwStructSize = sizeof(parts);
     parts.dwHostNameLength = static_cast<DWORD>(-1);
     parts.dwUrlPathLength = static_cast<DWORD>(-1);
-    if (!WinHttpCrackUrl(base.c_str(), 0, 0, &parts)) {
-        return false;
-    }
+    if (!WinHttpCrackUrl(base.c_str(), 0, 0, &parts)) return 0;
     if (parts.nScheme != INTERNET_SCHEME_HTTP && parts.nScheme != INTERNET_SCHEME_HTTPS) {
-        return false;
+        return 0;
     }
     std::wstring host(parts.lpszHostName, parts.dwHostNameLength);
+    if (host.empty()) return 0;
+
+    if (!token.empty()) {
+        // Nunca mandar credenciales a un servidor remoto por HTTP.
+        const bool local = _wcsicmp(host.c_str(), L"localhost") == 0
+            || host == L"127.0.0.1" || host == L"::1" || host == L"[::1]";
+        if (parts.nScheme != INTERNET_SCHEME_HTTPS && !local) return 0;
+        if (token.size() > 2048 || token.find_first_of(L"\r\n") != std::wstring::npos) return 0;
+    }
+
     std::wstring path = parts.dwUrlPathLength
         ? std::wstring(parts.lpszUrlPath, parts.dwUrlPathLength) : L"/";
-    if (!path.empty() && path.back() == L'/') {
-        path.pop_back();
-    }
-    path += L"/health";
+    if (!path.empty() && path.back() == L'/') path.pop_back();
+    path += L"/";
+    path += suffix;
+
     HINTERNET session = WinHttpOpen(
         L"MatickStudioLM/0.1", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0
-    );
-    if (!session) {
-        return false;
-    }
+        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!session) return 0;
     WinHttpSetTimeouts(session, 2500, 2500, 2500, 2500);
     HINTERNET connection = WinHttpConnect(session, host.c_str(), parts.nPort, 0);
     HINTERNET request = nullptr;
-    bool healthy = false;
+    int statusCode = 0;
     if (connection) {
         request = WinHttpOpenRequest(
             connection, L"GET", path.c_str(), nullptr,
             WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES,
-            parts.nScheme == INTERNET_SCHEME_HTTPS ? WINHTTP_FLAG_SECURE : 0
-        );
+            parts.nScheme == INTERNET_SCHEME_HTTPS ? WINHTTP_FLAG_SECURE : 0);
+        std::wstring headers;
+        if (!token.empty()) headers = L"Authorization: Bearer " + token + L"\r\n";
         if (request && WinHttpSendRequest(
-                request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-                WINHTTP_NO_REQUEST_DATA, 0, 0, 0
-            ) && WinHttpReceiveResponse(request, nullptr)) {
-            DWORD status = 0;
-            DWORD bytes = sizeof(status);
+                request, headers.empty() ? WINHTTP_NO_ADDITIONAL_HEADERS : headers.c_str(),
+                headers.empty() ? 0 : static_cast<DWORD>(-1),
+                WINHTTP_NO_REQUEST_DATA, 0, 0, 0)
+            && WinHttpReceiveResponse(request, nullptr)) {
+            DWORD code = 0;
+            DWORD bytes = sizeof(code);
             if (WinHttpQueryHeaders(
                     request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-                    WINHTTP_HEADER_NAME_BY_INDEX, &status, &bytes, WINHTTP_NO_HEADER_INDEX)) {
-                healthy = status == 200;
+                    WINHTTP_HEADER_NAME_BY_INDEX, &code, &bytes, WINHTTP_NO_HEADER_INDEX)) {
+                statusCode = static_cast<int>(code);
             }
         }
     }
     if (request) WinHttpCloseHandle(request);
     if (connection) WinHttpCloseHandle(connection);
     WinHttpCloseHandle(session);
-    return healthy;
+    return statusCode;
+}
+
+std::wstring CloudToken() {
+    const DWORD length = GetEnvironmentVariableW(L"MATICK_TOKEN", nullptr, 0);
+    if (length == 0 || length > 2048) return L"";
+    std::vector<wchar_t> buffer(length, L'\0');
+    if (!GetEnvironmentVariableW(L"MATICK_TOKEN", buffer.data(), length)) return L"";
+    return std::wstring(buffer.data());
+}
+
+CloudConnectionState ProbeCloudState(const std::wstring& base, bool configured) {
+    // /health únicamente demuestra que el servidor respondió, no que el bus
+    // privado, los modelos, Alexa, Gemini o Matick Reloj estén conectados.
+    if (CloudResponseCode(base, L"health") != 200) {
+        return configured ? CloudConnectionState::Desconectado
+                          : CloudConnectionState::NoConfigurado;
+    }
+    const std::wstring token = CloudToken();
+    if (token.empty()) return CloudConnectionState::SinSesion;
+    if (CloudResponseCode(base, L"v1/status", token) == 200) {
+        return CloudConnectionState::Conectado;
+    }
+    return CloudConnectionState::SinSesion;
 }
 
 LRESULT CALLBACK MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -287,7 +319,7 @@ LRESULT CALLBACK MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lP
             }
             return 0;
         case kHealthMessage:
-            DashboardSetCloudStatus(wParam != 0);
+            DashboardSetCloudStatus(static_cast<CloudConnectionState>(wParam));
             return 0;
         case WM_DESTROY:
             KillTimer(window, 1);
@@ -344,12 +376,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     SetTimer(window, 1, 33, nullptr);
 
     std::atomic<bool> running{true};
-    std::thread monitor([&running, window]() {
+    std::atomic<bool> forceRefresh{false};
+    std::thread monitor([&running, &forceRefresh, window]() {
         const std::wstring address = CloudURL();
+        const bool configured = GetEnvironmentVariableW(L"MATICK_CLOUD_URL", nullptr, 0) > 0;
         while (running.load()) {
-            const bool healthy = IsCloudHealthy(address);
-            PostMessageW(window, kHealthMessage, healthy ? 1 : 0, 0);
+            const auto state = ProbeCloudState(address, configured);
+            PostMessageW(window, kHealthMessage, static_cast<WPARAM>(state), 0);
             for (int i = 0; i < 50 && running.load(); ++i) {
+                if (forceRefresh.exchange(false)) break;
                 Sleep(100);
             }
         }
@@ -357,6 +392,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
 
     MSG message = {};
     while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+        // F5 funciona incluso cuando el cuadro EDIT tiene el foco.
+        if (message.message == WM_KEYDOWN && message.wParam == VK_F5) {
+            forceRefresh.store(true);
+            continue;
+        }
         TranslateMessage(&message);
         DispatchMessageW(&message);
     }
