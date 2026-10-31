@@ -37,14 +37,17 @@ La referencia visual que aprobaste se está trasladando a la aplicación nativa:
 
 **Estado del prototipo visual:** los paneles y navegación de demostración están implementados; la mascota es un dibujo vectorial provisional que parpadea, **no todavía tu recurso original animado**. El botón Enviar consulta `/v1/chat` con un token de sesión y muestra la respuesta **si un proveedor está configurado**. No ejecuta herramientas ni controla el equipo automáticamente. Las conexiones de Alexa, ChatGPT y el reloj se marcan como pendientes hasta ser verificadas.
 
-## Bibliotecas centrales y herramientas MCP (integración inicial)
+## Matick Core y herramientas propias MCP
 
-Se agregó [Matick ToolHub](integrations/toolhub/): un adaptador **opcional** de `@lmstudio/sdk` (SDK oficial de `lmstudio-js`) y un cliente MCP local `stdio` con registro `mcp.example.json`, descubrimiento de herramientas y autorizaciones explícitas. Revisa [guía de integración, ramas experimentales y seguridad](docs/INTEGRACION_LMSTUDIO_MCP.md).
+**Matick Studio LM es software nuevo e independiente**: API Matick REST v1, interfaz DirectX 12 y Matick Work, datos SQLite y herramientas desarrolladas dentro del proyecto. No es una distribución renombrada de LM Studio.
 
-- Compatible con la idea de **Matick Studio LM propio**: LM Studio no es requisito para la interfaz DX12 ni el servidor cloud.
-- Los ocho MCP del respaldo GemCo están catalogados como **deshabilitados por defecto** y requieren que sus scripts existan en Windows.
-- Las ramas de `lmstudio-js` son material de investigación; se integra una versión publicada del SDK sin copiar código experimental.
-- El cliente MCP y SDK funcionan como un proceso Node separado; todavía falta el puente entre ese proceso y el ejecutable DX12 y la nube.
+**Nuevo [Matick MCP Bridge](integrations/matick-mcp/matick_mcp.py):** servidor MCP `stdio` original, escrito en Python estándar. Permite a aplicaciones compatibles (incluido LM Studio si tú lo decides) consultar Matick sin incorporar ni copiar su código. Ofrece `matick_health`, `matick_capabilities`, `matick_models`, `matick_tasks`; la creación de tareas y el chat requieren activar permisos explícitos.
+
+**[Matick ToolHub](integrations/toolhub/):** cliente de nuestra propia API Matick y cliente MCP genérico. Su paquete Node no tiene dependencias de proveedores de IA; ni el SDK de LM Studio ni bibliotecas CUDA forman parte del núcleo.
+
+**[Guía oficial de independencia e integración MCP](docs/MATICK_INDEPENDENCIA_Y_MCP.md)** · [mcp.example.json](integrations/matick-mcp/mcp.example.json).
+
+Los proveedores de inferencia externos siguen siendo opcionales, y **Matick todavía no ejecuta modelos mediante un runtime de inferencia propio**. Sus marcas se mencionan únicamente para describir compatibilidad.
 
 ## Arquitectura
 

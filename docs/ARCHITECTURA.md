@@ -2,6 +2,9 @@
 
 ## Límites
 
+**Aclaración de identidad (octubre 2026):** Matick Core/REST v1/MCP son implementaciones originales, sin SDK de LM Studio en las dependencias principales. Las aplicaciones ajenas son solo clientes MCP o proveedores opcionales mediante interfaces documentadas. [Arquitectura y compatibilidad sin reutilización de código](MATICK_INDEPENDENCIA_Y_MCP.md).
+
+
 **Matick Studio LM** es una plataforma propia, separada de **LM Studio** (producto externo de ejecución local de modelos). El repositorio está orientado al plano de control en la nube y a su interfaz nativa Windows. Ningún nombre de endpoint debe hacerse pasar por una integración operativa si no hay credenciales, puente o servicio conectado.
 
 ```text

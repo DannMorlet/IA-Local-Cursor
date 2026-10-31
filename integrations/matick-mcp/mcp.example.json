@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "matick-studio-lm": {
+      "command": "py",
+      "args": [
+        "-3",
+        "C:\\Matick\\MatickStudioLM\\integrations\\matick-mcp\\matick_mcp.py"
+      ],
+      "env": {
+        "MATICK_CLOUD_URL": "http://127.0.0.1:8787"
+      }
+    }
+  }
+}

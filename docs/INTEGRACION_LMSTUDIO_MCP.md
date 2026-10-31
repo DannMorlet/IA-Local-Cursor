@@ -1,3 +1,12 @@
+# Archivo histórico: investigación de compatibilidad anterior
+
+Esta página documenta experimentos previos con librerías y ramas de LM Studio. **Ya no describe la arquitectura oficial ni las dependencias de Matick Studio LM.** El SDK externo se eliminó del ToolHub principal para mantener nuestro proyecto independiente.
+
+**Fuente actual de arquitectura, licencia e interoperabilidad:** [Matick Core y MCP propios](MATICK_INDEPENDENCIA_Y_MCP.md).
+
+Consulta las notas de este historial solo para investigación. Ningún ejemplo aquí requiere integrar o copiar un SDK externo en Matick.
+
+---
 # Matick Studio LM — LM Studio JS, ramas experimentales y MCP
 
 ## Decisión arquitectónica
