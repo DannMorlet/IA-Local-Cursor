@@ -44,6 +44,26 @@ jobs:
       - name: Compilar ejecutable
         shell: pwsh
         run: cmake --build out/build --config Release --parallel
+      - name: Verificar arranque de ventana en modo seguro GDI
+        shell: pwsh
+        run: |
+          $env:MATICK_RENDERER = 'gdi'
+          $exe = (Resolve-Path '.\\out\\build\\Release\\MatickStudioLM.exe').Path
+          $proc = Start-Process -FilePath $exe -PassThru
+          try {
+            Start-Sleep -Seconds 5
+            $proc.Refresh()
+            if ($proc.HasExited) { throw "Matick terminó antes de dibujar su ventana." }
+            $path = Join-Path $env:LOCALAPPDATA 'MatickStudioLM\\logs\\render.log'
+            if (-not (Test-Path -LiteralPath $path)) { throw "No se encontró render.log" }
+            $trace = Get-Content -LiteralPath $path -Raw
+            if (-not $trace.Contains('WINDOW_VISIBLE')) { throw "No aparece WINDOW_VISIBLE en render.log" }
+            if (-not $trace.Contains('GDI_SAFE_MODE_USER_SELECTED')) { throw "No se activó modo seguro" }
+            Write-Host 'Modo seguro GDI: ventana creada y proceso activo. Render real en monitor pendiente.'
+          } finally {
+            $proc.Refresh()
+            if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+          }
       - name: Construir paquete portable ligero
         shell: pwsh
         run: .\\tools\\package_portable.ps1 -ExePath .\\out\\build\\Release\\MatickStudioLM.exe -OutputDir .\\out\\dist

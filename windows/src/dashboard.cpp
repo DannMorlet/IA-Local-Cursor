@@ -25,6 +25,7 @@ HBRUSH gWhiteBrush = nullptr;
 std::vector<HFONT> gFonts;
 HWND gMascot = nullptr;
 HWND gApiStatus = nullptr;
+HWND gRendererStatus = nullptr;
 HWND gPageTitle = nullptr;
 HWND gPageSubtitle = nullptr;
 HWND gChatInput = nullptr;
@@ -208,6 +209,8 @@ void DashboardInstall(HWND window, HINSTANCE instance) {
         reinterpret_cast<HMENU>(201), instance, nullptr);
     SendMessageW(send, WM_SETFONT, reinterpret_cast<WPARAM>(NewFont(17, FW_SEMIBOLD)), TRUE);
     Label(window, instance, 74, L"Chat: solo funciona al configurar un modelo. /health no prueba IA.", 329, 377, 818, 27, 16);
+    gRendererStatus = Label(window, instance, 75,
+        L"Iniciando interfaz visual...", 329, 405, 818, 27, 15);
 
     Label(window, instance, 80, L"6 FRENTES DE TRABAJO  ·  NO ACTIVOS AÚN", 324, 472, 520, 28, 18, FW_BOLD);
     Label(window, instance, 81, L"Arquitectura", 334, 526, 158, 26, 17, FW_SEMIBOLD);
@@ -375,4 +378,12 @@ void DashboardSetChatResponse(const std::wstring& result, bool ok) {
     SetWindowTextW(gChatOutput, output.c_str());
     SendMessageW(gChatOutput, EM_SETSEL, 0, 0);
     (void)ok;
+}
+
+void DashboardSetRendererStatus(bool dx12Ready) {
+    if (!gRendererStatus) return;
+    SetWindowTextW(gRendererStatus, dx12Ready
+        ? L"Interfaz: DirectX 12 operativo"
+        : L"Interfaz: modo seguro GDI - revisa %LOCALAPPDATA%\\MatickStudioLM\\logs\\render.log");
+    InvalidateRect(gRendererStatus, nullptr, TRUE);
 }

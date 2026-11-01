@@ -7,6 +7,7 @@
 #include <winhttp.h>
 #include "dashboard.h"
 #include "chat_transport.h"
+#include "render_safety.h"
 #include <mutex>
 
 #include <algorithm>
@@ -33,7 +34,8 @@ std::thread gChatThread;
 
 void Check(HRESULT result) {
     if (FAILED(result)) {
-        throw std::runtime_error("No se pudo inicializar o dibujar con Direct3D 12.");
+        MatickLog(L"DX12_ERROR", result);
+        throw std::runtime_error("Fallo DirectX 12: se activará la interfaz segura.");
     }
 }
 
@@ -111,7 +113,10 @@ struct Renderer {
             return;
         }
         Check(fence->SetEventOnCompletion(value, fenceEvent));
-        WaitForSingleObject(fenceEvent, INFINITE);
+        if (WaitForSingleObject(fenceEvent, 2000) != WAIT_OBJECT_0) {
+            MatickLog(L"DX12_FENCE_TIMEOUT");
+            throw std::runtime_error("Timeout de sincronización DX12");
+        }
     }
 
     void Render() {
@@ -275,25 +280,39 @@ LRESULT CALLBACK MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lP
             SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(info->lpCreateParams));
             return TRUE;
         }
+        case WM_ERASEBKGND:
+            return 1; // evita un destello en blanco mientras se repinta el fondo.
+        case WM_PAINT: {
+            PAINTSTRUCT paint{};
+            HDC dc = BeginPaint(window, &paint);
+            if (!renderer || !renderer->initialized)
+                MatickDrawSafeBackground(window, dc);
+            EndPaint(window, &paint);
+            return 0;
+        }
         case WM_CTLCOLORSTATIC:
             return DashboardControlColor(reinterpret_cast<HDC>(wParam),
                                          reinterpret_cast<HWND>(lParam));
         case WM_COMMAND:
             DashboardCommand(window, LOWORD(wParam));
             return 0;
-        case WM_TIMER:
+        case WM_TIMER: {
             DashboardTick();
-            if (renderer) {
+            static unsigned tick = 0;
+            if (renderer && renderer->initialized && (++tick % 6 == 0)) {
+                // Las tarjetas son estáticas. No es necesario redibujar 30 FPS
+                // sobre la GPU: el avatar Win32 se anima por separado.
                 try {
                     renderer->Render();
                 } catch (...) {
-                    KillTimer(window, 1);
-                    MessageBoxW(window, L"Error de renderizado DirectX 12. Revisa el driver de tu GPU.",
-                                L"Matick Studio LM", MB_ICONERROR);
-                    DestroyWindow(window);
+                    MatickLog(L"DX12_RENDER_FAILED_SWITCHING_TO_GDI");
+                    renderer->Finish();
+                    DashboardSetRendererStatus(false);
+                    InvalidateRect(window, nullptr, FALSE);
                 }
             }
             return 0;
+        }
         case kHealthMessage:
             DashboardSetCloudStatus(wParam != 0);
             return 0;
@@ -342,6 +361,7 @@ LRESULT CALLBACK MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lP
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
+    MatickLog(L"STARTUP_BEGIN");
     Renderer renderer;
 
     WNDCLASSEXW cls = {};
@@ -351,6 +371,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     cls.lpszClassName = L"MatickStudioLMDirectX12";
     cls.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     if (!RegisterClassExW(&cls)) {
+        MatickLog(L"REGISTER_WINDOW_FAILED", HRESULT_FROM_WIN32(GetLastError()));
         MessageBoxW(nullptr, L"No se pudo registrar la ventana.", L"Matick Studio LM", MB_ICONERROR);
         return 1;
     }
@@ -365,23 +386,36 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
         nullptr, nullptr, instance, &renderer
     );
     if (!window) {
-        return 1;
-    }
-    try {
-        renderer.Init(window);
-    } catch (...) {
-        MessageBoxW(window,
-            L"DirectX 12 no se pudo iniciar. Actualiza el controlador de video y Windows.",
-            L"Matick Studio LM", MB_ICONERROR
-        );
-        DestroyWindow(window);
+        MatickLog(L"CREATE_WINDOW_FAILED", HRESULT_FROM_WIN32(GetLastError()));
         return 1;
     }
 
+    // Dibujar los controles ANTES de inicializar DX12 evita la ventana vacía.
     DashboardInstall(window, instance);
-
     ShowWindow(window, show);
     UpdateWindow(window);
+    MatickLog(L"WINDOW_VISIBLE");
+
+    const bool forceGdi = MatickPreferGDI();
+    if (forceGdi) {
+        MatickLog(L"GDI_SAFE_MODE_USER_SELECTED");
+    } else {
+        try {
+            MatickLog(L"DX12_INIT_BEGIN");
+            renderer.Init(window);
+            MatickLog(L"DX12_INIT_OK");
+            // Presentar un cuadro inmediatamente; no esperar al timer.
+            renderer.Render();
+            MatickLog(L"DX12_FIRST_FRAME_OK");
+        } catch (...) {
+            MatickLog(L"DX12_INIT_OR_FIRST_FRAME_FAILED_SWITCHING_TO_GDI");
+            renderer.Finish();
+        }
+    }
+    DashboardSetRendererStatus(renderer.initialized);
+    if (!renderer.initialized)
+        InvalidateRect(window, nullptr, FALSE);
+    // DX12 compone superficies estáticas a baja frecuencia para ahorrar GPU.
     SetTimer(window, 1, 33, nullptr);
 
     std::atomic<bool> running{true};
@@ -405,6 +439,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     monitor.join();
     if (gChatThread.joinable()) gChatThread.join();
     renderer.Finish();
+    MatickLog(L"SHUTDOWN_OK");
     DashboardShutdown();
     return static_cast<int>(message.wParam);
 }

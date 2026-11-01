@@ -4,6 +4,10 @@
 
 > Estado: **Matick Studio LM Cloud v1.0 — software ejecutable y comprobable**. Incluye un bus HTTP autenticado con SQLite, un proveedor HTTP de inferencia configurable, un ejecutable nativo DirectX 12 que puede enviar mensajes y un paquete portable de archivos permitidos. **No** incluye pesos/modelos, despliegue cloud 24/7, conexión real con ChatGPT/Alexa/reloj, agente Codex que ejecuta código ni un instalador firmado.
 
+## Ventana DirectX 12: modo seguro si el launcher aparece vacío
+
+La versión Windows abre la interfaz **antes** de iniciar la GPU. Si DirectX 12 falla, utiliza el dibujado básico de Windows (GDI) en vez de cerrarse con una ventana vacía. El log local `%LOCALAPPDATA%\\MatickStudioLM\\logs\\render.log` muestra la fase y el error HRESULT. Puedes arrancar con `.\\tools\\start_matick_portable.ps1 -SafeMode` sin modificar el registro ni desactivar servicios. [Guía de diagnóstico y optimización de bajo riesgo](docs/DIAGNOSTICO_RENDER_WINDOWS.md).
+
 ## Auditoría de MORLET-GAMING: puntuación 1..100
 
 Para verificar la instalación **local** de `C:\IA\Matick Studio LM`, se incluye el [auditor Python solo lectura](tools/auditar_matick_pc.py) y un [lanzador de Windows](tools/Auditar_Matick_PC.cmd). Inventaría todos los archivos por metadatos, analiza sintaxis Python/JSON, MCP, cabecera PE y conectividad local opcional. Guarda reporte Markdown y un JSON de inventario en **Descargas**, nunca dentro del proyecto. La calificación mide verificaciones superadas, no garantiza el 100 % del funcionamiento.
