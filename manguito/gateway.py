@@ -19,6 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
+from manguito.system_info import get_system_info
 
 MAX_BYTES = 256 * 1024
 PROPOSAL_TTL = 600
@@ -255,6 +256,8 @@ def make_handler(app: Manguito):
                 self.invoke(app.status)
             elif url.path == "/v1/models":
                 self.invoke(app.models)
+            elif url.path == "/v1/system":
+                self.invoke(get_system_info)
             elif url.path == "/v1/fs/list":
                 self.invoke(lambda: app.list_files(path))
             elif url.path == "/v1/fs/read":
