@@ -8,7 +8,7 @@ from __future__ import annotations
 import argparse, ast, hashlib, json, os, shutil, struct, sys, time
 from pathlib import Path
 from datetime import datetime, timezone
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 
@@ -54,6 +54,12 @@ def local_url(address):
         raise ValueError("Solo se permite HTTP por localhost para pruebas.")
     return address.rstrip("/")
 
+class NoRedirect(HTTPRedirectHandler):
+    """Never forward audit tokens to a redirect destination."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def api_json(url, token=None, body=None):
     headers={"Accept":"application/json","User-Agent":"MatickAuditor/1.0"}
     if token:headers["Authorization"]="Bearer "+token
@@ -63,7 +69,8 @@ def api_json(url, token=None, body=None):
         raw=json.dumps(body).encode("utf-8")
     try:
         req=Request(url,headers=headers,data=raw,method="POST" if raw is not None else "GET")
-        with urlopen(req,timeout=5) as r:return json.loads(r.read(65536))
+        with build_opener(NoRedirect()).open(req,timeout=5) as r:
+            return json.loads(r.read(65536))
     except (HTTPError,URLError,TimeoutError,OSError,ValueError) as e:
         return {"_error":type(e).__name__}
 
