@@ -53,3 +53,16 @@ Este repositorio ya posee una licencia Apache 2.0. No almacenar contraseñas, to
 ## Advertencia
 
 Manguito no debe operar con privilegios administrativos de forma permanente ni ejecutar cambios destructivos sin aprobación verificable. Conducir motocicleta requiere atención total: no usar control remoto, pantallas ni interacciones de trabajo durante la conducción.
+
+
+## 🥭 Manguito Studio v0.2 (preview visual)
+
+Se agregó una aplicación nativa Windows Forms + WebView2 acompañada de un backend local Python, y una alternativa portátil de consola + navegador. No sustituye al Manguito.exe original.
+
+**Funciones actuales:** dashboard oscuro/claro, chat con modelos LM Studio cargados, listado de modelos, lectura de archivos del workspace, propuestas de edición con diff y telemetría real NVIDIA usando nvidia-smi. **En desarrollo:** herramientas de mouse/teclado, GPU/NPU avanzados, CoffinU/ComfyUI y conexión móvil/reloj.
+
+- [Guía y límites de Manguito Studio](docs/MANGUITO_STUDIO_UI.md)
+- [Compilaciones en GitHub Actions](../../actions/workflows/manguito-studio.yml)
+- [PR de revisión](../../pull/1)
+
+**Importante:** la rama main actualmente corresponde a Matick Cloud; esta rama Manguito debe mantenerse independiente y no fusionarse automáticamente sin separar ambos productos.
