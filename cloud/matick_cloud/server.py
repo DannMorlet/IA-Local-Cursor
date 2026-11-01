@@ -151,9 +151,12 @@ class MatickHandler(BaseHTTPRequestHandler):
         if not auth.startswith("Bearer "):
             self._respond(HTTPStatus.UNAUTHORIZED, {"error": "Bearer token requerido"})
             return None
-        supplied = auth[7:]
+        # compare_digest(str, str) raises TypeError for non-ASCII characters.
+        # HTTP headers can contain Latin-1 text, so a malformed bearer token
+        # must produce 401 rather than disconnecting the request thread.
+        supplied = auth[7:].encode("utf-8")
         for role, secret in self.server.tokens.items():
-            if hmac.compare_digest(supplied, secret):
+            if hmac.compare_digest(supplied, secret.encode("utf-8")):
                 return role
         self._respond(HTTPStatus.UNAUTHORIZED, {"error": "Token inválido"})
         return None

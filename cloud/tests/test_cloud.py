@@ -54,6 +54,30 @@ class CloudTests(unittest.TestCase):
             self.call("/v1/status")
         self.assertEqual(denied.exception.code, 401)
 
+    def test_non_ascii_bearer_token_returns_401_and_server_recovers(self) -> None:
+        # http.client accepts Latin-1 in headers; compare_digest(str, str)
+        # used to raise TypeError and abruptly close the connection.
+        req = Request(self.base + "/v1/status", headers={
+            "Authorization": "Bearer inválido",
+        })
+        with self.assertRaises(HTTPError) as denied:
+            urlopen(req, timeout=3)
+        self.assertEqual(denied.exception.code, 401)
+        self.assertEqual(json.load(denied.exception)["error"], "Token inválido")
+        # A malformed credential must not break the next valid request.
+        status, data = self.call("/v1/status", "matick-chat")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["actor"], "matick-chat")
+
+    def test_unicode_configured_token_is_supported(self) -> None:
+        # Secrets from MATICK_TOKENS_JSON are UTF-8 strings; keep support
+        # for valid non-ASCII tokens while comparing constant-time bytes.
+        self.server.tokens["matick-chat"] = "clave-segura-ñ-123456789"
+        self.tokens["matick-chat"] = "clave-segura-ñ-123456789"
+        status, data = self.call("/v1/status", "matick-chat")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["actor"], "matick-chat")
+
     def test_message_is_bidirectional_and_isolated_by_recipient(self) -> None:
         status, receipt = self.call("/v1/events", "matick-studio-lm", {
             "target": "matick-chat", "kind": "mensaje", "payload": {"texto": "hola"},
