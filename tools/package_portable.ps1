@@ -48,7 +48,9 @@ foreach ($relative in @(
     'tools/start_matick_portable.ps1',
     'tools/auditar_matick_pc.py',
     'tools/Auditar_Matick_PC.cmd',
-    'docs/AUDITORIA_PC_1_A_100.md'
+    'docs/AUDITORIA_PC_1_A_100.md',
+    'docs/INSTALADOR_WINDOWS_X64.md',
+    'LICENSE'
 )) {
     Copy-LightFile $relative
 }
@@ -59,7 +61,7 @@ if ($bad) { throw "Distribución contiene carpetas prohibidas" }
 $items = Get-ChildItem -LiteralPath $target -File -Recurse
 $manifest = [ordered]@{
     name = 'Matick Studio LM'
-    package_version = '1.0.0'
+    package_version = '1.0.1'
     independent_from_local_project = $true
     generated_utc = (Get-Date).ToUniversalTime().ToString('o')
     files = @($items | ForEach-Object {

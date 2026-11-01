@@ -4,6 +4,14 @@
 
 > Estado: **Matick Studio LM Cloud v1.0 — software ejecutable y comprobable**. Incluye un bus HTTP autenticado con SQLite, un proveedor HTTP de inferencia configurable, un ejecutable nativo DirectX 12 que puede enviar mensajes y un paquete portable de archivos permitidos. **No** incluye pesos/modelos, despliegue cloud 24/7, conexión real con ChatGPT/Alexa/reloj, agente Codex que ejecuta código ni un instalador firmado.
 
+## Instalador Windows x64 con desinstalación segura (v1.0.1)
+
+**Matick puede instalarse como programa independiente** desde un ZIP de GitHub Actions que incluye `MatickStudioLM-v1.0.1-x64-Setup.exe`. El instalador incluye Python 3.12.10 embebido (fuente oficial Python.org con SHA256 fijo), Matick Core y la interfaz nativa DirectX 12. **No requiere instalar Python, Node ni LM Studio** para abrirse y arrancar la API local.
+
+Instalación por usuario en `%LOCALAPPDATA%\Programs\Matick Studio LM Cloud`, con desinstalador registrado en *Aplicaciones instaladas*. Conserva bases SQLite, registros, modelos y tu desarrollo `C:\IA\Matick Studio LM`. **No incluye modelos entrenados:** el chat requiere configurar un proveedor de inferencia.
+
+[Guía del instalador y desinstalación](docs/INSTALADOR_WINDOWS_X64.md).
+
 ## Ventana DirectX 12: modo seguro si el launcher aparece vacío
 
 La versión Windows abre la interfaz **antes** de iniciar la GPU. Si DirectX 12 falla, utiliza el dibujado básico de Windows (GDI) en vez de cerrarse con una ventana vacía. El log local `%LOCALAPPDATA%\\MatickStudioLM\\logs\\render.log` muestra la fase y el error HRESULT. Puedes arrancar con `.\\tools\\start_matick_portable.ps1 -SafeMode` sin modificar el registro ni desactivar servicios. [Guía de diagnóstico y optimización de bajo riesgo](docs/DIAGNOSTICO_RENDER_WINDOWS.md).
