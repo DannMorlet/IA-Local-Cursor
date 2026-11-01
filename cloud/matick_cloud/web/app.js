@@ -22,7 +22,13 @@ async function api(path, body=undefined) {
 function view(name) {
   state.view=name;
   for(const item of document.querySelectorAll(".view"))item.classList.toggle("hidden",item.id!=="view-"+name);
-  for(const item of document.querySelectorAll(".nav"))item.classList.toggle("active",item.dataset.view===name);
+  for(const item of document.querySelectorAll(".nav, .rail-button, .mode-tab")){
+    const selected=item.dataset.view===name;
+    item.classList.toggle("active",selected);
+    if(item.classList.contains("mode-tab"))item.setAttribute("aria-pressed",String(selected));
+    if(item.classList.contains("nav")||item.classList.contains("rail-button"))
+      item.setAttribute("aria-current",selected?"page":"false");
+  }
   $("view-name").textContent={workspace:"Trabajo",chat:"Chat",models:"Modelos IA",tools:"Herramientas MCP"}[name];
 }
 document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>view(button.dataset.view)));
@@ -64,6 +70,7 @@ function selectModel(id, fromSettings=false) {
   $("model-current").textContent=id;
   $("state-model").textContent=id;
   $("model-chip").textContent=id;
+  $("home-model-chip").textContent=id;
   const row=state.models.find(m=>m.key===id);
   state.loadedInstances=(row && Array.isArray(row.loaded_instances))?row.loaded_instances:[];
   if(!fromSettings) renderModels();
@@ -160,6 +167,30 @@ function chatBubble(role,text){
   const body=document.createElement("span");body.textContent=text;p.append(title,body);
   container.append(p);container.scrollTop=container.scrollHeight;
 }
+// La portada envía al mismo chat real, sin crear una ruta de inferencia paralela.
+$("home-form").addEventListener("submit", e=>{
+  e.preventDefault();
+  const prompt=$("home-prompt").value.trim();
+  if(!prompt)return;
+  if(!state.token){
+    showMessage("Conecta tu servidor Matick para comenzar.");
+    $("login-dialog").classList.remove("hidden");
+    $("token-input").focus();
+    return;
+  }
+  $("prompt").value=prompt;
+  $("home-prompt").value="";
+  view("chat");
+  $("chat-form").requestSubmit();
+});
+$("home-prompt").addEventListener("keydown",e=>{
+  if(e.key==="Enter" && e.ctrlKey){
+    e.preventDefault();
+    $("home-form").requestSubmit();
+  }
+});
+$("home-new-task").addEventListener("click",createTask);
+
 $("chat-form").addEventListener("submit",async e=>{
   e.preventDefault();
   const prompt=$("prompt").value.trim();if(!prompt)return;
