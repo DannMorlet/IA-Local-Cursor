@@ -365,7 +365,7 @@ class MatickHandler(BaseHTTPRequestHandler):
                         raise ProviderUnavailable("El proveedor alternativo no tiene ese modelo seleccionado")
                     # El proveedor OpenAI-compatible es respaldo; sin inferencia nativa activa.
                     valid_params(params, PARAMS)
-                    result = self.server.provider.respond(messages)
+                    result = self.server.provider.respond(messages, params)
             except (ProviderUnavailable, ModelOffline) as exc:
                 self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
                 return
