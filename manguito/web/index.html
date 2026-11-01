@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1118">
+  <title>Manguito Studio · Tu centro de IA</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><div class="brand-symbol">🥭</div><div><strong>Manguito</strong><small>STUDIO · LOCAL AI</small></div></div>
+      <div class="workspace-label">TU ESPACIO</div>
+      <nav class="navigation" aria-label="Secciones">
+        <button class="nav-item active" data-page="home"><span aria-hidden="true">◈</span> Inicio</button>
+        <button class="nav-item" data-page="chat"><span aria-hidden="true">✦</span> Chat local <span class="nav-dot"></span></button>
+        <button class="nav-item" data-page="files"><span aria-hidden="true">▤</span> Archivos</button>
+        <button class="nav-item" data-page="models"><span aria-hidden="true">⬡</span> Modelos</button>
+        <div class="nav-separator"></div>
+        <div class="workspace-label compact">LABORATORIO</div>
+        <button class="nav-item" data-page="agents"><span aria-hidden="true">⌘</span> Agentes <span class="soon">PRÓXIMO</span></button>
+        <button class="nav-item" data-page="creative"><span aria-hidden="true">◉</span> Creatividad <span class="soon">PRÓXIMO</span></button>
+        <button class="nav-item" data-page="devices"><span aria-hidden="true">⊞</span> Dispositivos <span class="soon">PRÓXIMO</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="local-mode"><span class="live-indicator"></span><div><strong>Privado por diseño</strong><small>127.0.0.1 · Tu PC</small></div></div>
+        <button class="settings-link" id="themeBtn" type="button"><span aria-hidden="true">◐</span> Cambiar tema</button>
+        <div class="credit">Hecho para Morlet · v0.2 preview</div>
+      </div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar">
+        <button id="menuBtn" class="icon-button mobile-only" aria-label="Abrir menú">☰</button>
+        <div class="breadcrumbs">MI ESTUDIO <span>/</span> <strong id="currentSection">Inicio</strong></div>
+        <div class="header-actions">
+          <span class="status-pill" id="connectionPill"><span class="status-light"></span><span id="connectionLabel">Sin conectar</span></span>
+          <button class="icon-button" id="refreshBtn" aria-label="Actualizar estado" title="Actualizar estado">↻</button>
+          <button class="top-action" id="connectionBtn">Conectar <span>↗</span></button>
+        </div>
+      </header>
+      <main class="content">
+        <section class="page shown" id="page-home">
+          <div class="hero">
+            <div class="hero-copy">
+              <p class="eyebrow"><span class="twinkle">✳</span> BIENVENIDO A TU ESTUDIO</p>
+              <h1>La creatividad tiene<br><em>un nuevo motor.</em></h1>
+              <p class="hero-sub">Tus modelos, tus proyectos y tus herramientas. Todo en un solo lugar, en tu propia computadora.</p>
+              <div class="hero-actions">
+                <button class="button-primary" data-go="chat">✦ &nbsp; Abrir chat local <span>↗</span></button>
+                <button class="button-secondary" data-go="files">▤ &nbsp; Explorar archivos</button>
+              </div>
+            </div>
+            <div class="hero-orbit" aria-hidden="true"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="orbit-core">🥭</div><span class="star s1">✧</span><span class="star s2">✦</span><span class="star s3">✧</span></div>
+          </div>
+          <div class="section-heading"><div><span class="eyebrow tiny">PANEL EN VIVO</span><h2>Tu centro de control</h2></div><span class="muted" id="lastUpdate">Sin actualizar</span></div>
+          <div class="metrics">
+            <article class="metric"><div class="metric-icon green">◈</div><p>Motor IA</p><strong id="metricEngine">Sin conectar</strong><small id="engineSub">LM Studio / OpenAI compatible</small></article>
+            <article class="metric"><div class="metric-icon purple">⬡</div><p>Modelos cargados</p><strong id="metricModels">—</strong><small id="modelsSub">Disponibles localmente</small></article>
+            <article class="metric"><div class="metric-icon orange">▤</div><p>Workspace</p><strong id="metricWorkspace">—</strong><small>Carpeta autorizada</small></article>
+            <article class="metric"><div class="metric-icon blue">⌘</div><p>Acceso de edición</p><strong id="metricWrites">—</strong><small>Con aprobación del PC</small></article>
+          </div>
+          <div class="split-panels">
+            <section class="panel"><div class="panel-heading"><div><span class="eyebrow tiny">ATAJOS</span><h3>¿Qué creamos hoy?</h3></div><span class="panel-deco">↗</span></div>
+              <div class="quick-actions">
+                <button data-go="chat"><span class="quick-icon">✦</span><span><b>Conversar con tu IA</b><small>Usa un modelo cargado en LM Studio</small></span><span class="quick-arrow">›</span></button>
+                <button data-go="files"><span class="quick-icon">▤</span><span><b>Leer y editar código</b><small>Diff previo y aprobación local</small></span><span class="quick-arrow">›</span></button>
+                <button data-go="models"><span class="quick-icon">⬡</span><span><b>Explorar modelos</b><small>Consulta los modelos del servidor</small></span><span class="quick-arrow">›</span></button>
+              </div>
+            </section>
+            <section class="panel next-panel"><div class="panel-heading"><div><span class="eyebrow tiny">EN CONSTRUCCIÓN</span><h3>El futuro de Manguito</h3></div><span class="panel-deco">✳</span></div>
+              <div class="future-grid"><div><span>⌘</span><b>Agentes</b><small>Programación y tareas</small></div><div><span>◉</span><b>CoffinU</b><small>Imagen y video</small></div><div><span>▣</span><b>GPU + NPU</b><small>Enrutamiento inteligente</small></div><div><span>⊞</span><b>Control remoto</b><small>Celular y reloj</small></div></div>
+              <p class="panel-note">Estos módulos están planeados, pero aún no se encuentran conectados a tu PC.</p>
+            </section>
+          </div>
+        </section>
+        <section class="page" id="page-chat">
+          <div class="page-title"><div><p class="eyebrow">✦ INTELIGENCIA LOCAL</p><h1>Chat Manguito</h1><p>Habla con tus modelos. Las respuestas se procesan en tu servidor configurado.</p></div><button class="button-secondary" id="newChatBtn">+ Nuevo chat</button></div>
+          <div class="chat-shell">
+            <div class="chat-toolbar"><label for="chatModel">MODELO</label><select id="chatModel" aria-label="Modelo de chat"><option value="">Conectar para cargar modelos</option></select><span class="tiny-muted">Chat de texto · sin herramientas automáticas</span></div>
+            <div class="messages" id="messages" aria-live="polite"><div class="empty-chat"><div class="empty-orb">🥭</div><h2>Hola, soy Manguito.</h2><p>Tu compañero de ideas, código y experimentos locales. ¿Qué hacemos hoy?</p></div></div>
+            <form class="composer" id="chatForm"><textarea id="chatInput" rows="2" maxlength="12000" placeholder="Escribe tu idea, una pregunta o código… (Enter para enviar)" aria-label="Mensaje para Manguito" required></textarea><button class="send-button" id="sendBtn" title="Enviar mensaje" aria-label="Enviar mensaje" type="submit">↑</button></form>
+            <small class="privacy-note">● Este chat usa el servidor de modelos que configures; no envía datos a la nube por sí mismo.</small>
+          </div>
+        </section>
+        <section class="page" id="page-files">
+          <div class="page-title"><div><p class="eyebrow">▤ ESPACIO SEGURO</p><h1>Explorador de proyectos</h1><p>Lee y prepara cambios dentro de la carpeta autorizada por Manguito.</p></div><button class="button-secondary" id="filesReload">↻ Actualizar</button></div>
+          <div class="files-layout">
+            <div class="panel file-browser"><div class="file-location"><button id="goParent" title="Subir carpeta">↑</button><code id="fileLocation">/</code></div><div id="fileList" class="file-list"><p class="placeholder">Conecta Manguito para ver archivos.</p></div></div>
+            <div class="panel editor-panel"><div class="editor-top"><span id="editorFilename">Selecciona un archivo de texto</span><span class="editor-chip">UTF-8 · máx. 256 KiB</span></div><textarea id="fileEditor" spellcheck="false" placeholder="Selecciona un archivo del explorador para leerlo o proponer una edición." disabled></textarea><div class="editor-actions"><button class="button-secondary" id="previewBtn" disabled>Vista previa del cambio</button><span id="editorStatus" class="tiny-muted">Solo lectura inicial</span></div><pre class="diff-preview" id="diffPreview" hidden></pre><div class="approval" id="approvalArea" hidden><label for="approvalCode">Código de aprobación mostrado únicamente en la PC</label><input id="approvalCode" type="password" autocomplete="off" placeholder="Código local"><button class="button-primary" id="applyBtn">Aplicar cambio</button></div></div>
+          </div>
+        </section>
+        <section class="page" id="page-models">
+          <div class="page-title"><div><p class="eyebrow">⬡ INTELIGENCIA ABIERTA</p><h1>Tus modelos locales</h1><p>Conecta LM Studio o un servidor OpenAI-compatible.</p></div><button class="button-secondary" id="modelsReload">↻ Actualizar</button></div>
+          <div class="panel"><div class="panel-heading"><h3>Modelos detectados</h3><span class="tag">API local</span></div><div id="modelList" class="model-list"><p class="placeholder">Conecta tu servidor para ver los modelos.</p></div></div>
+        </section>
+        <section class="page" id="page-agents"><div class="coming"><div class="coming-icon">⌘</div><span class="eyebrow">PRÓXIMAMENTE</span><h1>Un equipo de agentes.</h1><p>Agentes para desarrollar, probar y organizar proyectos. Cada herramienta necesitará permisos explícitos y un registro de acciones.</p><button class="button-secondary" data-go="chat">Mientras tanto, abre el chat ↗</button></div></section>
+        <section class="page" id="page-creative"><div class="coming"><div class="coming-icon">◉</div><span class="eyebrow">PRÓXIMAMENTE</span><h1>De una idea a una imagen.</h1><p>El futuro laboratorio integrará CoffinU, ComfyUI y colas de trabajo que respeten la memoria de tu RTX 5060.</p><button class="button-secondary" data-go="home">Volver al inicio ↗</button></div></section>
+        <section class="page" id="page-devices"><div class="coming"><div class="coming-icon">⊞</div><span class="eyebrow">PRÓXIMAMENTE</span><h1>Tu estudio te acompaña.</h1><p>Planeamos conectar celular y Galaxy Fit3 por un canal privado, además de Sunshine + Moonlight para transmisión táctil de baja latencia.</p><button class="button-secondary" data-go="home">Volver al inicio ↗</button></div></section>
+      </main>
+    </div>
+  </div>
+  <div id="backdrop" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-icon">🥭</div><h2 id="modalTitle">Conectar Manguito</h2>
+      <p>Introduce el token que aparece cuando inicias el servidor local. Se conserva solo durante esta pestaña.</p>
+      <label for="tokenInput">TOKEN DE ESTA SESIÓN</label><input id="tokenInput" type="password" autocomplete="off" placeholder="Pega tu token local">
+      <div class="modal-actions"><button id="disconnectBtn" class="button-secondary">Desconectar</button><button id="connectBtn" class="button-primary">Conectar ahora ↗</button></div>
+      <div class="tip">💡 Inicia Manguito en tu PC usando <code>scripts/start-manguito.ps1</code>.</div>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
