@@ -12,6 +12,12 @@ jobs:
   cloud:
     name: Contrato y pruebas cloud
     runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.api.outcome }}
+      chat: ${{ steps.chat.outcome }}
+      rest: ${{ steps.rest.outcome }}
+      work: ${{ steps.work.outcome }}
+      mcp: ${{ steps.mcp.outcome }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,9 +26,30 @@ jobs:
       - name: Compilar sintaxis Python
         run: python -m compileall -q cloud
       - name: Pruebas API y persistencia
+        id: api
         env:
           PYTHONPATH: cloud
-        run: python -m unittest discover -s cloud/tests -v
+        run: python -m unittest discover -s cloud/tests -p test_cloud.py -v
+      - name: Pruebas chat con proveedor simulado
+        id: chat
+        env:
+          PYTHONPATH: cloud
+        run: python -m unittest discover -s cloud/tests -p test_chat.py -v
+      - name: Pruebas REST modelos simulados
+        id: rest
+        env:
+          PYTHONPATH: cloud
+        run: python -m unittest discover -s cloud/tests -p test_rest_v1.py -v
+      - name: Pruebas de tareas Work
+        id: work
+        env:
+          PYTHONPATH: cloud
+        run: python -m unittest discover -s cloud/tests -p test_work.py -v
+      - name: Pruebas MCP
+        id: mcp
+        env:
+          PYTHONPATH: cloud
+        run: python -m unittest discover -s cloud/tests -p test_matick_mcp.py -v
       - name: Pruebas del comparador de solo lectura
         env:
           PYTHONPATH: tools
@@ -36,15 +63,21 @@ jobs:
     name: Compilar interfaz DirectX 12 x64
     # Pin VS 2022: windows-latest ahora incluye Visual Studio 2026
     runs-on: windows-2022
+    outputs:
+      dx12: ${{ steps.dx12.outcome }}
+      gdi: ${{ steps.gdi.outcome }}
+      installer: ${{ steps.installer.outcome }}
     steps:
       - uses: actions/checkout@v4
       - name: Configurar MSVC / CMake
         shell: pwsh
         run: cmake -S windows -B out/build -G "Visual Studio 17 2022" -A x64
       - name: Compilar ejecutable
+        id: dx12
         shell: pwsh
         run: cmake --build out/build --config Release --parallel
       - name: Verificar arranque de ventana en modo seguro GDI
+        id: gdi
         shell: pwsh
         run: |
           $env:MATICK_RENDERER = 'gdi'
@@ -74,6 +107,7 @@ jobs:
         shell: pwsh
         run: .\tools\build_windows_installer.ps1
       - name: Probar instalar, arrancar y desinstalar conservando datos
+        id: installer
         shell: pwsh
         run: .\tools\test_windows_installer.ps1
       - name: Publicar ZIP con instalador, guía y suma SHA256
@@ -97,6 +131,9 @@ jobs:
   toolhub:
     name: Matick Core / ToolHub / MCP stdio sin SDK externo
     runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.web.outcome }}
+      toolhub: ${{ steps.toolhub_tests.outcome }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -105,6 +142,40 @@ jobs:
       - name: Comprobar ToolHub sin instalar SDK ni paquetes externos
         run: node --check integrations/toolhub/src/matick-api.mjs
       - name: Comprobar sintaxis del panel Matick Work
+        id: web
         run: node --check cloud/matick_cloud/web/app.js
       - name: Comprobar registro MCP y adaptador sin servidores externos
+        id: toolhub_tests
         run: node --test integrations/toolhub/tests/*.test.mjs
+
+  functional-report:
+    name: Matriz de verificaciones 0-100 (no equivale a app funcional)
+    if: always()
+    needs: [cloud, windows-dx12, toolhub]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generar informe verificable JSON y Markdown
+        env:
+          MATICK_TEST_API: ${{ needs.cloud.outputs.api }}
+          MATICK_TEST_CHAT: ${{ needs.cloud.outputs.chat }}
+          MATICK_TEST_REST: ${{ needs.cloud.outputs.rest }}
+          MATICK_TEST_WORK: ${{ needs.cloud.outputs.work }}
+          MATICK_TEST_MCP: ${{ needs.cloud.outputs.mcp }}
+          MATICK_TEST_WEB: ${{ needs.toolhub.outputs.web }}
+          MATICK_TEST_TOOLHUB: ${{ needs.toolhub.outputs.toolhub }}
+          MATICK_TEST_DX12: ${{ needs.windows-dx12.outputs.dx12 }}
+          MATICK_TEST_GDI: ${{ needs.windows-dx12.outputs.gdi }}
+          MATICK_TEST_INSTALLER: ${{ needs.windows-dx12.outputs.installer }}
+          MATICK_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python tools/functional_matrix.py --out out/functional-report
+      - name: Adjuntar matriz a la ejecución
+        uses: actions/upload-artifact@v4
+        with:
+          name: MatickStudioLM-Evidencia-Funcional
+          path: out/functional-report/
+          if-no-files-found: error
+          retention-days: 30
