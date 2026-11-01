@@ -9,7 +9,7 @@ import json
 import os
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 class ProviderUnavailable(Exception):
@@ -20,10 +20,20 @@ class ProviderResponseError(Exception):
     """El proveedor devolvió un resultado inválido."""
 
 
+class NoRedirect(HTTPRedirectHandler):
+    """Never forward a chat request or API key to a redirect destination."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # urllib normally follows POST -> GET on 301/302/303, forwarding Authorization.
+        # Returning None makes the opener raise HTTPError instead.
+        return None
+
+
 class OpenAICompatibleProvider:
     def __init__(self, base_url: str = "", model: str = "", api_key: str = "") -> None:
         self.model = model.strip()
         self.api_key = api_key
+        self.opener = build_opener(NoRedirect())
         self.base_url = base_url.strip().rstrip("/")
         if self.base_url:
             url = urlsplit(self.base_url)
@@ -71,7 +81,7 @@ class OpenAICompatibleProvider:
             headers["Authorization"] = "Bearer " + self.api_key
         req = Request(url, data=payload, headers=headers, method="POST")
         try:
-            with urlopen(req, timeout=25) as response:
+            with self.opener.open(req, timeout=25) as response:
                 raw = response.read(128 * 1024 + 1)
         except (HTTPError, URLError, TimeoutError, OSError) as exc:
             # No divulgar URL, tokens ni cuerpo de error de proveedores externos.

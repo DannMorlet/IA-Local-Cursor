@@ -164,5 +164,58 @@ class ChatContractTests(unittest.TestCase):
             worker.join(timeout=3)
 
 
+    def test_provider_does_not_follow_redirect_or_forward_token(self):
+        """A malicious 302 must not forward the Authorization header to another host."""
+        visits = []
+
+        class RedirectTarget(BaseHTTPRequestHandler):
+            def do_GET(self):
+                visits.append((self.path, self.headers.get("Authorization")))
+                raw = json.dumps({"choices": [{"message": {"content": "wrong server"}}]}).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+            def log_message(self, *args):
+                pass
+
+        target = ThreadingHTTPServer(("127.0.0.1", 0), RedirectTarget)
+
+        class RedirectSource(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.send_response(302)
+                self.send_header(
+                    "Location", "http://127.0.0.1:%d/other-host" % target.server_port
+                )
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        source = ThreadingHTTPServer(("127.0.0.1", 0), RedirectSource)
+        workers = [
+            threading.Thread(target=s.serve_forever, daemon=True)
+            for s in (target, source)
+        ]
+        for worker in workers:
+            worker.start()
+        try:
+            provider = OpenAICompatibleProvider(
+                "http://127.0.0.1:%d" % source.server_port,
+                "demo", "test-bearer-secret"
+            )
+            with self.assertRaises(ProviderUnavailable):
+                provider.respond([{"role": "user", "content": "private prompt"}])
+            self.assertEqual(visits, [], "Provider followed a redirect and leaked a token")
+        finally:
+            for server in (source, target):
+                server.shutdown()
+                server.server_close()
+            for worker in workers:
+                worker.join(timeout=3)
+
+
+
 if __name__ == "__main__":
     unittest.main()
