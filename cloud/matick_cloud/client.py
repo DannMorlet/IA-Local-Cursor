@@ -13,7 +13,15 @@ import os
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+
+class NoRedirect(HTTPRedirectHandler):
+    """Never forward a Matick role token to a redirect target."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # urllib follows 301/302/303 and may copy Authorization to another host.
+        return None
 
 
 def request(method: str, path: str, payload: dict | None = None, authenticated: bool = True) -> dict:
@@ -31,7 +39,7 @@ def request(method: str, path: str, payload: dict | None = None, authenticated: 
     if authenticated:
         headers["Authorization"] = "Bearer " + token
     req = Request(base + path, data=data, method=method, headers=headers)
-    with urlopen(req, timeout=30) as response:
+    with build_opener(NoRedirect()).open(req, timeout=30) as response:
         return json.load(response)
 
 

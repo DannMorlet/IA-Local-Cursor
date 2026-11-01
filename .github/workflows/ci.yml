@@ -34,7 +34,9 @@ jobs:
         id: chat
         env:
           PYTHONPATH: cloud
-        run: python -m unittest discover -s cloud/tests -p test_chat.py -v
+        run: |
+          python -m unittest discover -s cloud/tests -p test_chat.py -v
+          python -m unittest discover -s cloud/tests -p test_client_redirect.py -v
       - name: Pruebas REST modelos simulados
         id: rest
         env:
