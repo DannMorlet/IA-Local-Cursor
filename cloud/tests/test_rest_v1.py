@@ -145,6 +145,39 @@ class RestTests(unittest.TestCase):
             })
         self.assertEqual(invalid.exception.code, 502)
 
+    def test_malformed_chat_upstream_returns_502_and_recovers(self):
+        """Valid JSON with a broken REST v1 shape must never drop the HTTP connection."""
+        self.call("/v1/models/settings", {"model": "google/gemma-demo"})
+        request = {"messages": [{"role": "user", "content": "hola"}]}
+        malformed = (
+            None, [], {}, {"output": None}, {"output": {}},
+            {"output": [{"type": "message", "content": ""}]},
+            {"output": [{"type": "message", "content": "   "}]},
+            {"output": [{"type": "message", "content": 123}]},
+        )
+        for response in malformed:
+            with self.subTest(response=response):
+                with patch.object(self.bridge, "request", return_value=response):
+                    with self.assertRaises(HTTPError) as error:
+                        self.call("/v1/chat", request)
+                    self.assertEqual(error.exception.code, 502)
+                    self.assertIn("error", json.load(error.exception))
+        # Malformed upstream responses must not poison subsequent valid chats.
+        self.assertIn("Respuesta v1:", self.call("/v1/chat", request)["content"])
+
+    def test_malformed_optional_chat_metadata_is_sanitized(self):
+        self.call("/v1/models/settings", {"model": "google/gemma-demo"})
+        with patch.object(self.bridge, "request", return_value={
+            "output": [{"type": "message", "content": "OK"}],
+            "stats": ["bad"], "model_instance_id": {"unexpected": "value"}
+        }):
+            result = self.call("/v1/chat", {
+                "messages": [{"role": "user", "content": "hola"}]
+            })
+        self.assertEqual(result["content"], "OK")
+        self.assertEqual(result["stats"], {})
+        self.assertIsNone(result["model_instance_id"])
+
     def test_permissions_and_invalid_parameters(self):
         with self.assertRaises(HTTPError) as denied:
             self.call("/v1/models/settings", {"model": "google/gemma-demo"}, role="matick-chat")
