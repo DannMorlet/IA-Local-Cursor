@@ -205,14 +205,24 @@ class RestV1Bridge:
         if previous_response_id:
             payload["previous_response_id"] = previous_response_id
         result = self.request("/api/v1/chat", payload)
-        texts = [item.get("content", "") for item in result.get("output", [])
-                 if isinstance(item, dict) and item.get("type") == "message"
-                 and isinstance(item.get("content"), str)]
+        # A remote provider can return valid JSON with an invalid shape.
+        # Convert those responses to a controlled 502 instead of crashing
+        # the request thread with AttributeError/TypeError (HTTP disconnect).
+        if not isinstance(result, dict) or not isinstance(result.get("output"), list):
+            raise ModelError("Respuesta REST v1 de chat inválida")
+        texts = [
+            content for item in result["output"]
+            if isinstance(item, dict) and item.get("type") == "message"
+            for content in [item.get("content")]
+            if isinstance(content, str) and content.strip()
+        ]
         if not texts:
             raise ModelError("El modelo no devolvió texto de respuesta")
+        stats = result.get("stats")
+        instance = result.get("model_instance_id")
         response = {"model": model, "content": "\n".join(texts)[:12000],
-                    "stats": result.get("stats", {}),
-                    "model_instance_id": result.get("model_instance_id")}
+                    "stats": stats if isinstance(stats, dict) else {},
+                    "model_instance_id": instance if isinstance(instance, str) else None}
         identifier = result.get("response_id")
         if stateful and isinstance(identifier, str) and re.fullmatch(
             r"resp_[a-zA-Z0-9_-]{1,128}", identifier
