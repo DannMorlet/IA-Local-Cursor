@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import sys
 import tempfile
 import threading
 import time
@@ -183,6 +184,11 @@ def make_handler(app: Manguito):
     class Handler(BaseHTTPRequestHandler):
         server_version = "ManguitoLocal/0.2"
 
+        def log_message(self, format, *args):
+            # En ejecutables sin consola (PyInstaller --windowed), stderr=None.
+            # El logger predeterminado rompería las respuestas HTTP.
+            return
+
         def respond(self, status: int, payload: dict):
             raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
@@ -289,10 +295,12 @@ def main():
     writable = os.environ.get("MANGUITO_ENABLE_WRITES") == "1"
     app = Manguito(folder, token, endpoint, writes=writable)
     server = ThreadingHTTPServer(("127.0.0.1", 8765), make_handler(app))
-    print("Manguito disponible en http://127.0.0.1:8765", flush=True)
+    if sys.stdout is not None:
+        print("Manguito disponible en http://127.0.0.1:8765", flush=True)
     if writable:
-        print("APROBACIÓN LOCAL DE ESCRITURA:", app.approval_code, flush=True)
-        print("No compartas el código de aprobación con ninguna IA.", flush=True)
+        if sys.stdout is not None:
+            print("APROBACIÓN LOCAL DE ESCRITURA:", app.approval_code, flush=True)
+            print("No compartas el código de aprobación con ninguna IA.", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
