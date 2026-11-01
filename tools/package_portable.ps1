@@ -43,6 +43,7 @@ foreach ($relative in @(
     'integrations/toolhub/src/registry.mjs',
     'docs/PLAN_CLOUD_A_PC.md',
     'docs/REST_V1_MODELOS.md',
+    'docs/DIAGNOSTICO_RENDER_WINDOWS.md',
     'tools/prepare_local_transfer.ps1',
     'tools/start_matick_portable.ps1',
     'tools/auditar_matick_pc.py',

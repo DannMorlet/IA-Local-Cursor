@@ -15,3 +15,6 @@ void DashboardShutdown();
 // Se usa para la solicitud de chat asíncrona; sin dependencias externas.
 std::wstring DashboardReadChatInput();
 void DashboardSetChatResponse(const std::wstring& result, bool ok);
+
+// Indica el modo real tras arrancar el motor; nunca finge una conexión.
+void DashboardSetRendererStatus(bool dx12Ready);
