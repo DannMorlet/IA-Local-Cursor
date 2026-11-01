@@ -181,7 +181,7 @@ class Manguito:
 
 def make_handler(app: Manguito):
     class Handler(BaseHTTPRequestHandler):
-        server_version = "ManguitoLocal/0.1"
+        server_version = "ManguitoLocal/0.2"
 
         def respond(self, status: int, payload: dict):
             raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -209,7 +209,38 @@ def make_handler(app: Manguito):
                 return False
             return True
 
+        def send_asset(self, filename: str, content_type: str):
+            asset = Path(__file__).resolve().parent / "web" / filename
+            try:
+                raw = asset.read_bytes()
+            except OSError:
+                self.respond(404, {"error": "Recurso visual no disponible"})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(raw)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Security-Policy",
+                             "default-src 'none'; script-src 'self'; style-src 'self'; "
+                             "connect-src 'self'; img-src 'self' data:; "
+                             "font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+            self.end_headers()
+            self.wfile.write(raw)
+
         def do_GET(self):
+            # Solo los tres recursos de interfaz son públicos; APIs requieren token.
+            route = urlparse(self.path).path
+            visual_assets = {
+                "/": ("index.html", "text/html; charset=utf-8"),
+                "/assets/style.css": ("style.css", "text/css; charset=utf-8"),
+                "/assets/app.js": ("app.js", "text/javascript; charset=utf-8"),
+            }
+            if route in visual_assets:
+                self.send_asset(*visual_assets[route])
+                return
             if not self.allowed():
                 return
             url = urlparse(self.path)
