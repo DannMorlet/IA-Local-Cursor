@@ -64,6 +64,10 @@ Generación: `temperature` 0..1, `top_p` 0..1, `top_k` 1..500, `min_p` 0..1, `re
 
 Carga: `context_length` 512..65536, `eval_batch_size` 16..4096, `num_experts` 1..512, `flash_attention` booleano y `offload_kv_cache_to_gpu` booleano. Algunos modelos/motores no admiten todos los valores y devolverán un error real.
 
+### Proveedor OpenAI-compatible alternativo
+
+Cuando `MATICK_REST_V1_URL` no está configurado y se usa `MATICK_MODEL_BASE_URL` + `MATICK_MODEL_ID`, Matick **reenvía** los ajustes guardados `temperature`, `top_p` y `max_output_tokens` (como `max_tokens`) al endpoint `/v1/chat/completions`. Los demás ajustes (`top_k`, `min_p`, `repeat_penalty`, `reasoning`, `context_length`) no son universales en OpenAI-compatible: **no se reenvían**, y el JSON del chat devuelve `parameters_not_forwarded` para que la interfaz los indique. `parameters_forwarded` identifica solo lo enviado por HTTP, no certifica que el motor lo haya aplicado internamente. Sin ajuste de tokens, el límite de solicitud sigue siendo 512. Los ajustes de carga y VRAM requieren un motor compatible separado; este proveedor alternativo no los aplica.
+
 ## Seguridad y límites de v1
 
 - Nunca insertar contraseñas o claves en `mcp.json` público ni en GitHub.
