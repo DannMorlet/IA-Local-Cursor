@@ -1,12 +1,14 @@
 """Matick PC audit tests: 100% offline, never execute the fixture project."""
 import json
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import struct
+import threading
 import tempfile
 import unittest
 from pathlib import Path
 
 from auditar_matick_pc import (
-    scan, pe_x64, local_url, score_checks, markdown,
+    scan, pe_x64, local_url, score_checks, markdown, api_json,
 )
 
 class MatickPcAuditTests(unittest.TestCase):
@@ -50,6 +52,67 @@ class MatickPcAuditTests(unittest.TestCase):
             struct.pack_into("<H", data, 104, 0x014c)
             path.write_bytes(data)
             self.assertFalse(pe_x64(path))
+
+
+    def test_auditor_never_follows_redirect_with_token(self):
+        """A malicious local API must not forward the auditor's Bearer token."""
+        received = []
+
+        class Target(BaseHTTPRequestHandler):
+            def do_GET(self):
+                received.append(self.headers.get("Authorization"))
+                body = b'{"stolen":true}'
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        target = ThreadingHTTPServer(("127.0.0.1", 0), Target)
+
+        class Source(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == "/ok":
+                    body = b'{"status":"ok"}'
+                    self.send_response(200)
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                else:
+                    self.send_response(302)
+                    self.send_header(
+                        "Location", "http://127.0.0.1:%d/leak" % target.server_port
+                    )
+                    self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        source = ThreadingHTTPServer(("127.0.0.1", 0), Source)
+        servers = (source, target)
+        threads = [threading.Thread(target=srv.serve_forever, daemon=True)
+                   for srv in servers]
+        for thread in threads:
+            thread.start()
+        try:
+            base = "http://127.0.0.1:%d" % source.server_port
+            self.assertEqual(
+                api_json(base + "/redirect", token="audit-private-token"),
+                {"_error": "HTTPError"},
+            )
+            self.assertEqual(received, [], "Audit token leaked via HTTP redirect")
+            self.assertEqual(
+                api_json(base + "/ok", token="audit-private-token"),
+                {"status": "ok"},
+            )
+        finally:
+            for srv in servers:
+                srv.shutdown()
+                srv.server_close()
+            for thread in threads:
+                thread.join(timeout=3)
 
     def test_scoring_and_safety(self):
         with self.assertRaises(ValueError):
