@@ -8,6 +8,7 @@
 #include "dashboard.h"
 #include "chat_transport.h"
 #include "render_safety.h"
+#include "backend_bootstrap.h"
 #include <mutex>
 
 #include <algorithm>
@@ -396,6 +397,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     UpdateWindow(window);
     MatickLog(L"WINDOW_VISIBLE");
 
+    // El instalador incluye Python embebido, aislado. La ventana ya se ve
+    // cuando el servidor local comienza a iniciar (sin Python global).
+    MatickBackend backend;
+    backend.StartIfBundled();
+
     const bool forceGdi = MatickPreferGDI();
     if (forceGdi) {
         MatickLog(L"GDI_SAFE_MODE_USER_SELECTED");
@@ -439,6 +445,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     monitor.join();
     if (gChatThread.joinable()) gChatThread.join();
     renderer.Finish();
+    backend.Stop();
     MatickLog(L"SHUTDOWN_OK");
     DashboardShutdown();
     return static_cast<int>(message.wParam);

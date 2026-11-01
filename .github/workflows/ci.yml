@@ -67,6 +67,25 @@ jobs:
       - name: Construir paquete portable ligero
         shell: pwsh
         run: .\\tools\\package_portable.ps1 -ExePath .\\out\\build\\Release\\MatickStudioLM.exe -OutputDir .\\out\\dist
+      - name: Incorporar Python embebido x64 verificado por SHA256
+        shell: pwsh
+        run: .\tools\prepare_embedded_runtime.ps1 -DistPath .\out\dist
+      - name: Compilar instalador Windows x64 con desinstalador
+        shell: pwsh
+        run: .\tools\build_windows_installer.ps1
+      - name: Probar instalar, arrancar y desinstalar conservando datos
+        shell: pwsh
+        run: .\tools\test_windows_installer.ps1
+      - name: Publicar ZIP con instalador, guía y suma SHA256
+        uses: actions/upload-artifact@v4
+        with:
+          name: MatickStudioLM-v1.0.1-Windows-x64-Instalador
+          path: |
+            out/setup/MatickStudioLM-v1.0.1-x64-Setup.exe
+            out/setup/LEEME_INSTALADOR.md
+            out/setup/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
       - name: Publicar paquete ligero verificado como artefacto
         uses: actions/upload-artifact@v4
         with:
