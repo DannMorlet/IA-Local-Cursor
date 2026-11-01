@@ -46,7 +46,8 @@
     text("#metricWrites", "—");
     if (!connected) {
       text("#metricModels", "—");
-      text("#metricWorkspace", "—");
+      text("#metricGPU", "—");
+      text("#gpuSub", "Carga y VRAM en tiempo real");
       $("#chatModel").replaceChildren(new Option("Conectar para cargar modelos", ""));
       $("#modelList").replaceChildren(el("p", "placeholder", "Conecta tu servidor para ver modelos."));
       $("#fileList").replaceChildren(el("p", "placeholder", "Conecta Manguito para ver archivos."));
@@ -95,18 +96,26 @@
       setConnected(true);
       text("#metricWrites", status.writes ? "Con aprobación" : "Solo lectura");
       text("#lastUpdate", "Actualizado " + new Date().toLocaleTimeString("es-MX", {hour:"2-digit",minute:"2-digit"}));
-      await Promise.allSettled([loadModels(), loadWorkspaceSummary()]);
+      await Promise.allSettled([loadModels(), loadSystem()]);
     } catch (error) {
       setConnected(false);
       showToast("No se pudo conectar: " + error.message, true);
     }
   }
-  async function loadWorkspaceSummary() {
+  async function loadSystem() {
     try {
-      const listing = await api("/v1/fs/list?path=.", "GET", undefined, 8000);
-      text("#metricWorkspace", listing.entries.length + (listing.limited ? "+" : "") + " elementos");
+      const snapshot = await api("/v1/system", "GET", undefined, 8000);
+      const gpu = snapshot.gpu;
+      if (gpu && typeof gpu.utilization_percent === "number") {
+        text("#metricGPU", gpu.utilization_percent + "% de carga");
+        text("#gpuSub", gpu.name + " · " + gpu.memory_used_mb + " / " + gpu.memory_total_mb + " MB VRAM");
+      } else {
+        text("#metricGPU", "No detectada");
+        text("#gpuSub", "Instala o revisa nvidia-smi y el controlador");
+      }
     } catch (error) {
-      text("#metricWorkspace", "Sin acceso");
+      text("#metricGPU", "Sin datos");
+      text("#gpuSub", "No fue posible consultar el hardware");
     }
   }
   async function loadModels() {
