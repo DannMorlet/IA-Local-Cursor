@@ -1,14 +1,16 @@
-name: Manguito Studio · check and package
+name: Manguito Studio · build windows
 
 on:
   push:
     paths:
       - 'manguito/**'
+      - 'windows/ManguitoStudio/**'
       - 'tests/**'
       - '.github/workflows/manguito-studio.yml'
   pull_request:
     paths:
       - 'manguito/**'
+      - 'windows/ManguitoStudio/**'
       - 'tests/**'
       - '.github/workflows/manguito-studio.yml'
   workflow_dispatch:
@@ -39,17 +41,32 @@ jobs:
         with:
           python-version: '3.12'
           architecture: 'x64'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - name: Instalar empaquetador
         run: python -m pip install "pyinstaller>=6,<7"
-      - name: Crear ejecutable de prueba
-        run: pyinstaller --noconfirm --clean --onefile --console --name Manguito-Studio --paths . --add-data "manguito/web;manguito/web" manguito/desktop.py
-      - name: Comprobar resultado
+      - name: Compilar backend sin consola
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name Manguito-Backend --paths . --add-data "manguito/web;manguito/web" manguito/server.py
+      - name: Compilar versión portable con navegador
+        run: pyinstaller --noconfirm --clean --onefile --console --name Manguito-Portable --paths . --add-data "manguito/web;manguito/web" manguito/desktop.py
+      - name: Publicar interfaz WebView2 Windows
+        run: dotnet publish windows/ManguitoStudio/ManguitoStudio.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o release
+      - name: Crear ZIP seguro y verificar binarios
         shell: pwsh
         run: |
-          if (-not (Test-Path 'dist/Manguito-Studio.exe')) { throw "No se generó el ejecutable" }
-          Get-Item 'dist/Manguito-Studio.exe' | Select-Object Name, Length
+          Copy-Item 'dist/Manguito-Backend.exe' 'release/Manguito-Backend.exe'
+          if (-not (Test-Path 'release/Manguito-Studio.exe')) { throw "Falta el programa Windows" }
+          if (-not (Test-Path 'release/Manguito-Backend.exe')) { throw "Falta el motor local" }
+          Compress-Archive -Path 'release/*' -DestinationPath 'Manguito-Studio-Windows.zip' -Force
+          Get-Item 'Manguito-Studio-Windows.zip' | Select-Object Name, Length
       - uses: actions/upload-artifact@v4
         with:
           name: Manguito-Studio-Windows-preview
-          path: dist/Manguito-Studio.exe
+          path: Manguito-Studio-Windows.zip
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Manguito-Portable-Windows-preview
+          path: dist/Manguito-Portable.exe
           retention-days: 14
