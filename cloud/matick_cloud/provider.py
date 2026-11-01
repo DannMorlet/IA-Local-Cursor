@@ -11,6 +11,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from .models import PARAMS, valid_params
+
 
 class ProviderUnavailable(Exception):
     """Proveedor no configurado o temporalmente inaccesible."""
@@ -63,9 +65,16 @@ class OpenAICompatibleProvider:
     def configured(self) -> bool:
         return bool(self.base_url and self.model)
 
-    def respond(self, messages: list[dict[str, str]]) -> dict[str, str]:
+    def respond(self, messages: list[dict[str, str]], params: dict | None = None) -> dict[str, object]:
         if not self.configured:
             raise ProviderUnavailable("No hay un modelo configurado en Matick Cloud")
+        # OpenAI-compatible no garantiza top_k, min_p, repeat_penalty ni reasoning.
+        # Solo reenviar opciones estándar; nunca fingir que se aplicaron las demás.
+        options = valid_params(params if params is not None else {}, PARAMS)
+        forwarded = {key: options[key] for key in ("temperature", "top_p") if key in options}
+        if "max_output_tokens" in options:
+            forwarded["max_tokens"] = options["max_output_tokens"]
+        not_forwarded = sorted(set(options) - {"temperature", "top_p", "max_output_tokens"})
         url = self.base_url + ("" if self.base_url.endswith("/v1") else "/v1") + "/chat/completions"
         payload = json.dumps({
             "model": self.model,
@@ -74,6 +83,7 @@ class OpenAICompatibleProvider:
                 *messages,
             ],
             "max_tokens": 512,
+            **forwarded,
             "stream": False,
         }, ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json"}
@@ -96,4 +106,9 @@ class OpenAICompatibleProvider:
         if not isinstance(content, str) or not content.strip():
             # HTTP 200 con contenido vacío no es una inferencia completada.
             raise ProviderResponseError("Respuesta del proveedor sin texto")
-        return {"model": self.model, "content": content[:12000]}
+        return {
+            "model": self.model,
+            "content": content[:12000],
+            "parameters_forwarded": sorted(forwarded),
+            "parameters_not_forwarded": not_forwarded,
+        }

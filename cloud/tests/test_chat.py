@@ -22,7 +22,7 @@ class FakeProvider:
     model = "modelo-simulado"
     calls = []
 
-    def respond(self, messages):
+    def respond(self, messages, params=None):
         self.calls.append(messages)
         return {"model": self.model, "content": "Matick respondió: " + messages[-1]["content"]}
 
@@ -31,7 +31,7 @@ class DisabledProvider:
     configured = False
     model = ""
 
-    def respond(self, messages):
+    def respond(self, messages, params=None):
         raise ProviderUnavailable("No hay un modelo configurado en Matick Cloud")
 
 
@@ -158,6 +158,35 @@ class ChatContractTests(unittest.TestCase):
             self.assertEqual(result["content"], "respuesta del motor")
             self.assertEqual(received[0][0], "/v1/chat/completions")
             self.assertEqual(received[0][1]["model"], "demo")
+            self.assertEqual(received[0][1]["max_tokens"], 512)
+            # Configuración guardada por la interfaz: debe llegar al motor,
+            # no limitarse a aparecer en SQLite.
+            self.server.provider = provider
+            self.server.model_state.set({"generation": {
+                "temperature": 0.3, "top_p": 0.85,
+                "max_output_tokens": 144, "top_k": 40,
+                "min_p": 0.05, "repeat_penalty": 1.1,
+            }})
+            status, raw, _ = self.request("/v1/chat", {
+                "messages": [{"role": "user", "content": "hola con ajustes"}]
+            })
+            self.assertEqual(status, 200)
+            result = json.loads(raw)
+            self.assertEqual(result["content"], "respuesta del motor")
+            self.assertEqual(result["parameters_forwarded"],
+                             ["max_tokens", "temperature", "top_p"])
+            self.assertEqual(result["parameters_not_forwarded"],
+                             ["min_p", "repeat_penalty", "top_k"])
+            sent = received[-1][1]
+            self.assertEqual(sent["temperature"], 0.3)
+            self.assertEqual(sent["top_p"], 0.85)
+            self.assertEqual(sent["max_tokens"], 144)
+            self.assertNotIn("top_k", sent)
+            self.assertNotIn("min_p", sent)
+            self.assertNotIn("repeat_penalty", sent)
+            with self.assertRaises(ValueError):
+                provider.respond([{"role": "user", "content": "hola"}],
+                                 {"temperature": 4})
         finally:
             fake.shutdown()
             fake.server_close()

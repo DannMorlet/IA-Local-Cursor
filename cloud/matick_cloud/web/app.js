@@ -212,6 +212,8 @@ $("chat-form").addEventListener("submit",async e=>{
       details.push(Number(stats.tokens_per_second).toFixed(1)+" tokens/s");
     if(Number.isFinite(stats.input_tokens)) details.push(stats.input_tokens+" tokens entrada");
     if(Number.isFinite(stats.total_output_tokens)) details.push(stats.total_output_tokens+" tokens salida");
+    if(Array.isArray(response.parameters_not_forwarded) && response.parameters_not_forwarded.length)
+      details.push("No enviados al motor: "+response.parameters_not_forwarded.join(", "));
     $("chat-stats").textContent=details.join(" · ")||"Respuesta recibida";
   }catch(err){chatBubble("assistant","No se generó una respuesta: "+err.message);}
   finally{$("send-chat").disabled=false;}
