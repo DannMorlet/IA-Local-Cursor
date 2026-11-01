@@ -164,6 +164,48 @@ class ChatContractTests(unittest.TestCase):
             worker.join(timeout=3)
 
 
+    def test_openai_provider_rejects_blank_chat_and_recovers(self):
+        """A 200 response without generated text is a 502, not a successful chat."""
+        replies = ["", " \n\t ", "respuesta válida"]
+
+        class BlankThenValidHandler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers.get("Content-Length", 0)))
+                body = json.dumps({
+                    "choices": [{"message": {"content": replies.pop(0)}}]
+                }, ensure_ascii=False).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        fake = ThreadingHTTPServer(("127.0.0.1", 0), BlankThenValidHandler)
+        worker = threading.Thread(target=fake.serve_forever, daemon=True)
+        worker.start()
+        try:
+            self.server.provider = OpenAICompatibleProvider(
+                "http://127.0.0.1:%d/v1" % fake.server_port, "demo"
+            )
+            payload = {"messages": [{"role": "user", "content": "hola"}]}
+            for _ in range(2):
+                with self.assertRaises(HTTPError) as error:
+                    self.request("/v1/chat", payload)
+                self.assertEqual(error.exception.code, 502)
+                self.assertIn("error", json.load(error.exception))
+            status, raw, _ = self.request("/v1/chat", payload)
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(raw)["content"], "respuesta válida")
+            self.assertEqual(replies, [])
+        finally:
+            fake.shutdown()
+            fake.server_close()
+            worker.join(timeout=3)
+
+
     def test_provider_does_not_follow_redirect_or_forward_token(self):
         """A malicious 302 must not forward the Authorization header to another host."""
         visits = []
