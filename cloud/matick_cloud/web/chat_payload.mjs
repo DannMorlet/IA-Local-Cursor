@@ -26,6 +26,15 @@ export function buildChatPayload(history, {model = "", stateful = false,
   if (stateful && previousResponseId && conversationModel === model) {
     request.previous_response_id = previousResponseId;
   }
+  // El backend limita el cuerpo HTTP completo a 16 KiB, no a 12k caracteres.
+  // UTF-8 (acentos, emojis) y el JSON pueden ocupar más bytes que el texto.
+  const encoder = new TextEncoder();
+  while (encoder.encode(JSON.stringify(request)).byteLength > 16 * 1024) {
+    if (messages.length === 1) {
+      throw new TypeError("El mensaje supera el límite HTTP de 16 KiB; acórtalo");
+    }
+    messages.shift(); // Descartar primero el turno más antiguo, nunca el actual.
+  }
   return request;
 }
 
