@@ -114,6 +114,12 @@ class WorkTests(unittest.TestCase):
         self.assertIn("selectedModelReadiness()", source)
         self.assertIn("const requestId=++state.inventoryRequestId;", source)
         self.assertIn("inventoryRequestIsCurrent(requestId,state.inventoryRequestId,requestToken,state.token)", source)
+        # Login cancelado o fallido nunca invalida una sesión ya autenticada.
+        self.assertIn('id="login-submit"', markup)
+        self.assertIn('api("/v1/capabilities",undefined,token)', source)
+        self.assertIn('loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim())', source)
+        self.assertIn('state.loginRequestId++;', source)
+        self.assertNotIn('catch(err) {state.token="";', source)
 
     def test_create_and_update_tasks(self):
         _, data = self.call("/v1/tasks")
