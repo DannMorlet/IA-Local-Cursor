@@ -1,6 +1,6 @@
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback} from "./chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
-const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0 };
+const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0, inventoryRequestId:0 };
 function showMessage(message) {
   $("toast").textContent = String(message);
   $("toast").classList.remove("hidden");
@@ -68,10 +68,13 @@ $("login-form").addEventListener("submit", async e=>{
 });
 function empty(element,message) {element.replaceChildren();const p=document.createElement("div");p.className="empty";p.textContent=message;element.append(p);}
 async function refreshModels(){
+  const requestId=++state.inventoryRequestId;
+  const requestToken=state.token;
   state.inventoryFresh=false;
   $("home-model-chip").textContent="Comprobando estado del modelo…";
   try {
     const [inventory,settings]=await Promise.all([api("/v1/models"),api("/v1/models/settings")]);
+    if(!inventoryRequestIsCurrent(requestId,state.inventoryRequestId,requestToken,state.token)) return false;
     state.models=Array.isArray(inventory.models)?inventory.models:[];
     state.provider=inventory.provider||"";
     state.inventoryFresh=true;
@@ -85,6 +88,7 @@ async function refreshModels(){
     renderModels();
     return true;
   }catch(err){
+    if(!inventoryRequestIsCurrent(requestId,state.inventoryRequestId,requestToken,state.token)) return false;
     state.inventoryFresh=false;
     $("state-engine").textContent="No se pudo verificar el motor";
     $("home-model-chip").textContent="Estado del modelo sin verificar";
