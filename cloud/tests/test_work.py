@@ -74,6 +74,8 @@ class WorkTests(unittest.TestCase):
         self.assertIn('$("home-model-chip").textContent=state.provider==="rest-v1"', source)
         self.assertIn('id+" · Falta cargar"', source)
         self.assertIn('id+" · Inferencia por verificar"', source)
+        self.assertIn('modelLoadFeedback(state,config.model)', source)
+        self.assertNotIn('showMessage("Modelo cargado en el motor conectado.")', source)
         self.assertIn('querySelectorAll(".nav, .rail-button, .mode-tab")', source)
         self.assertNotIn('fonts.googleapis.com', markup)
         self.assertNotIn('https://', markup)
