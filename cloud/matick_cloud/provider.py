@@ -116,7 +116,8 @@ class OpenAICompatibleProvider:
             for source, target in (("prompt_tokens", "input_tokens"),
                                    ("completion_tokens", "total_output_tokens")):
                 count = usage.get(source)
-                if type(count) is int and count >= 0:
+                # JavaScript chat clients cannot represent larger integers exactly.
+                if type(count) is int and 0 <= count <= (1 << 53) - 1:
                     stats[target] = count
         return {
             "model": self.model,
