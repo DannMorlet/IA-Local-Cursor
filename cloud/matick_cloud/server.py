@@ -227,8 +227,12 @@ class MatickHandler(BaseHTTPRequestHandler):
                 self._respond(HTTPStatus.OK, {"download": status})
             except ModelOffline as exc:
                 self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
-            except (ValueError, ModelError) as exc:
+            except ValueError as exc:
                 self._respond(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            except ModelError as exc:
+                # The provider returned malformed data or an unsafe redirect.
+                # This is an upstream gateway error, not a client validation error.
+                self._respond(HTTPStatus.BAD_GATEWAY, {"error": str(exc)})
             return
         if route.path == "/v1/tasks":
             self._respond(HTTPStatus.OK, {"tasks": self.server.tasks.list()})
@@ -341,8 +345,12 @@ class MatickHandler(BaseHTTPRequestHandler):
                 self._respond(HTTPStatus.FORBIDDEN, {"error": str(exc)})
             except ModelOffline as exc:
                 self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
-            except (ValueError, ModelError) as exc:
+            except ValueError as exc:
                 self._respond(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            except ModelError as exc:
+                # The provider returned malformed data or an unsafe redirect.
+                # This is an upstream gateway error, not a client validation error.
+                self._respond(HTTPStatus.BAD_GATEWAY, {"error": str(exc)})
             return
 
         if route == "/v1/chat":
