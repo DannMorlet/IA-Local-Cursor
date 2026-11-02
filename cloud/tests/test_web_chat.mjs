@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback} from "../matick_cloud/web/chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent} from "../matick_cloud/web/chat_payload.mjs";
 
 test("el proveedor alternativo aparece sin fingir inferencia verificada", () => {
   const inventory = {provider: "openai-compatible", configured: true, connected: false,
@@ -139,4 +139,20 @@ test("cargar no significa inferir: confirma solo la instancia reportada por REST
   assert.match(modelLoadFeedback(state,"modelo-inexistente"), /no aparece/);
   assert.match(modelLoadFeedback({...state,provider:"openai-compatible"},"modelo-a"),
     /inferencia todavía sin verificar/);
+});
+
+
+test("inventario: una respuesta tardía no debe reemplazar un refresco más reciente", () => {
+  const token = "token-actual";
+  // Dos consultas simultáneas: la primera puede finalizar después de la segunda.
+  assert.equal(inventoryRequestIsCurrent(1, 2, token, token), false);
+  assert.equal(inventoryRequestIsCurrent(2, 2, token, token), true);
+  // Un error tardío de la consulta anterior tampoco debe invalidar la nueva.
+  assert.equal(inventoryRequestIsCurrent(3, 4, token, token), false);
+});
+
+test("inventario: un token anterior no puede reactivar modelos de otra sesión", () => {
+  assert.equal(inventoryRequestIsCurrent(5, 5, "token-anterior", "token-nuevo"), false);
+  assert.equal(inventoryRequestIsCurrent(5, 5, "", ""), false);
+  assert.equal(inventoryRequestIsCurrent(5, 5, "token-nuevo", "token-nuevo"), true);
 });
