@@ -1,4 +1,4 @@
-import {buildChatPayload, applyChatResultIfCurrent} from "./chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
 const state = { token:"", models:[], selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0 };
 function showMessage(message) {
