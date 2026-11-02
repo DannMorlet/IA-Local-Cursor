@@ -38,6 +38,25 @@ test("los historiales inválidos no producen peticiones rotas", () => {
   assert.throws(() => buildChatPayload([user("x".repeat(8001))]), TypeError);
 });
 
+
+test("el cuerpo HTTP del chat respeta 16 KiB reales con UTF-8 y JSON", () => {
+  // El servidor limita Content-Length, no la cantidad de caracteres JavaScript.
+  const history = [user("漢".repeat(5000)), assistant("respuesta"), user("🥭".repeat(3000))];
+  const request = buildChatPayload(history, {model: "modelo-ñ"});
+  assert.deepEqual(request.messages, [user("🥭".repeat(3000))]);
+  assert.ok(new TextEncoder().encode(JSON.stringify(request)).byteLength <= 16 * 1024);
+  // Los mensajes cortos con acentos no deben descartarse.
+  const short = buildChatPayload([user("¡Qué tal! 🥭"), assistant("Bien"), user("continúa")]);
+  assert.equal(short.messages.length, 3);
+});
+
+test("rechaza el último mensaje si ni solo cabe en el límite HTTP", () => {
+  // 6k caracteres válidos por mensaje, pero 18k bytes antes del JSON.
+  assert.throws(() => buildChatPayload([user("漢".repeat(6000))]), /16 KiB/);
+  // El nombre de modelo también forma parte del tamaño real de la petición.
+  assert.throws(() => buildChatPayload([user("hola")], {model: "漢".repeat(6000)}), /16 KiB/);
+});
+
 test("respuestas tardías no contaminan otro modelo ni un chat limpiado", async () => {
   let epoch = 3;
   const sentEpoch = epoch;
