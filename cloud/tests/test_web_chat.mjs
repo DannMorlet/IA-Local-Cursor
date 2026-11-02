@@ -178,3 +178,50 @@ test("autenticación: el resultado antiguo no sustituye la sesión nueva", async
     activeSession.token="token-pendiente";
   assert.equal(activeSession.token,"token-ya-validado");
 });
+
+
+test("limpiar el chat permite enviar otra petición sin esperar la anterior", async () => {
+  let epoch=1;
+  let sendDisabled=true;
+  let homeDisabled=true;
+  let resolveOld;
+  const oldPending=new Promise(resolve=>{resolveOld=resolve;});
+  const oldEpoch=epoch;
+  // Nueva conversación: los botones se habilitan de inmediato.
+  epoch++;
+  sendDisabled=false;
+  homeDisabled=false;
+  assert.equal(sendDisabled,false);
+  assert.equal(homeDisabled,false);
+  // La conversación nueva envía otra petición y vuelve a bloquear los botones.
+  const newEpoch=epoch;
+  sendDisabled=true;
+  homeDisabled=true;
+  resolveOld();
+  await oldPending;
+  // finally de la solicitud anterior: no debe desbloquear la nueva.
+  assert.equal(applyChatResultIfCurrent(oldEpoch,epoch,()=>{
+    sendDisabled=false;homeDisabled=false;
+  }),false);
+  assert.equal(sendDisabled,true);
+  assert.equal(homeDisabled,true);
+  // Solo la petición vigente puede liberar ambos botones.
+  assert.equal(applyChatResultIfCurrent(newEpoch,epoch,()=>{
+    sendDisabled=false;homeDisabled=false;
+  }),true);
+  assert.equal(sendDisabled,false);
+  assert.equal(homeDisabled,false);
+});
+
+test("cambiar de modelo invalida la limpieza tardía del envío anterior", () => {
+  let epoch=10;
+  let pending=true;
+  const previousEpoch=epoch;
+  epoch++; // Se seleccionó otro modelo y se restableció la UI.
+  pending=false;
+  pending=true; // Se envió una pregunta con el modelo nuevo.
+  applyChatResultIfCurrent(previousEpoch,epoch,()=>{pending=false;});
+  assert.equal(pending,true);
+  applyChatResultIfCurrent(epoch,epoch,()=>{pending=false;});
+  assert.equal(pending,false);
+});
