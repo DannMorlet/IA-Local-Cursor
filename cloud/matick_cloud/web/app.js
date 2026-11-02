@@ -62,7 +62,7 @@ async function refreshModels(){
     if(presentation.selectedModel) selectModel(presentation.selectedModel,true);
     setSavedSettings(settings);
     renderModels();
-  }catch(err){empty($("model-list"),"Sin conexión REST v1: "+err.message);}
+  }catch(err){empty($("model-list"),"No se pudo consultar modelos: "+err.message);}
 }
 function selectModel(id, fromSettings=false) {
   if(state.selected!==id){
