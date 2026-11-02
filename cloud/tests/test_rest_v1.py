@@ -183,6 +183,34 @@ class RestTests(unittest.TestCase):
         self.assertGreaterEqual(result["stats"]["http_roundtrip_ms"], 0)
         self.assertIsNone(result["model_instance_id"])
 
+    def test_rest_v1_upstream_metrics_are_finite_and_typed(self):
+        """Malformed upstream counters must not leak NaN, booleans or junk into chat."""
+        self.call("/v1/models/settings", {"model": "google/gemma-demo"})
+        cases = (
+            ({"tokens_per_second": float("nan"), "input_tokens": True,
+              "total_output_tokens": -3, "extra": float("inf")}, {}),
+            ({"tokens_per_second": 10 ** 400, "input_tokens": 10 ** 400,
+              "total_output_tokens": 10 ** 400}, {}),
+            ({"tokens_per_second": 42.5, "input_tokens": 3,
+              "total_output_tokens": 4, "extra": {"untrusted": "value"}},
+             {"tokens_per_second": 42.5, "input_tokens": 3,
+              "total_output_tokens": 4}),
+        )
+        for upstream, expected in cases:
+            with self.subTest(upstream=upstream):
+                with patch.object(self.bridge, "request", return_value={
+                    "output": [{"type": "message", "content": "Respuesta correcta"}],
+                    "stats": upstream,
+                }):
+                    result = self.call("/v1/chat", {
+                        "messages": [{"role": "user", "content": "hola"}]
+                    })
+                self.assertEqual(result["content"], "Respuesta correcta")
+                stats = dict(result["stats"])
+                self.assertGreaterEqual(stats.pop("http_roundtrip_ms"), 0)
+                self.assertEqual(stats, expected)
+                json.dumps(result, allow_nan=False)
+
     def test_permissions_and_invalid_parameters(self):
         with self.assertRaises(HTTPError) as denied:
             self.call("/v1/models/settings", {"model": "google/gemma-demo"}, role="matick-chat")

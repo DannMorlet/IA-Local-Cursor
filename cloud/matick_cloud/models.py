@@ -222,7 +222,19 @@ class RestV1Bridge:
         if not texts:
             raise ModelError("El modelo no devolvió texto de respuesta")
         upstream_stats = result.get("stats")
-        stats = dict(upstream_stats) if isinstance(upstream_stats, dict) else {}
+        stats = {}
+        if isinstance(upstream_stats, dict):
+            # Upstream stats are untrusted. Keep only JSON-safe, typed metrics;
+            # the web UI cannot represent integers above 2**53 - 1 exactly.
+            max_safe_int = (1 << 53) - 1
+            for key in ("input_tokens", "total_output_tokens"):
+                value = upstream_stats.get(key)
+                if type(value) is int and 0 <= value <= max_safe_int:
+                    stats[key] = value
+            rate = upstream_stats.get("tokens_per_second")
+            if ((type(rate) is int and 0 <= rate <= max_safe_int)
+                    or (type(rate) is float and math.isfinite(rate) and rate >= 0)):
+                stats["tokens_per_second"] = rate
         # Campo local y verificable; nunca reemplaza tokens_per_second del motor.
         stats["http_roundtrip_ms"] = http_roundtrip_ms
         instance = result.get("model_instance_id")
