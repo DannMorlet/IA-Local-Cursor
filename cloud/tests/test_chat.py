@@ -165,7 +165,8 @@ class ChatContractTests(unittest.TestCase):
             def do_POST(self):
                 length = int(self.headers.get("Content-Length", 0))
                 received.append((self.path, json.loads(self.rfile.read(length))))
-                result = {"choices": [{"message": {"content": "respuesta del motor"}}]}
+                result = {"choices": [{"message": {"content": "respuesta del motor"}}],
+                          "usage": {"prompt_tokens": 11, "completion_tokens": 5}}
                 data = json.dumps(result).encode()
                 self.send_response(200)
                 self.send_header("Content-Length", str(len(data)))
@@ -181,6 +182,11 @@ class ChatContractTests(unittest.TestCase):
             provider = OpenAICompatibleProvider(url, "demo")
             result = provider.respond([{"role": "user", "content": "hola"}])
             self.assertEqual(result["content"], "respuesta del motor")
+            self.assertGreaterEqual(result["stats"]["http_roundtrip_ms"], 0)
+            self.assertEqual(result["stats"]["input_tokens"], 11)
+            self.assertEqual(result["stats"]["total_output_tokens"], 5)
+            self.assertNotIn("tokens_per_second", result["stats"],
+                             "El tiempo HTTP no demuestra velocidad de decodificación")
             self.assertEqual(received[0][0], "/v1/chat/completions")
             self.assertEqual(received[0][1]["model"], "demo")
             self.assertEqual(received[0][1]["max_tokens"], 512)
@@ -253,6 +259,9 @@ class ChatContractTests(unittest.TestCase):
             status, raw, _ = self.request("/v1/chat", payload)
             self.assertEqual(status, 200)
             self.assertEqual(json.loads(raw)["content"], "respuesta válida")
+            self.assertGreaterEqual(json.loads(raw)["stats"]["http_roundtrip_ms"], 0)
+            self.assertNotIn("total_output_tokens", json.loads(raw)["stats"],
+                             "Sin usage real no deben inventarse tokens")
             self.assertEqual(replies, [])
         finally:
             fake.shutdown()
