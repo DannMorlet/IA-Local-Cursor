@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {buildChatPayload, applyChatResultIfCurrent} from "../matick_cloud/web/chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation} from "../matick_cloud/web/chat_payload.mjs";
 
 const user = text => ({role: "user", content: text});
 const assistant = text => ({role: "assistant", content: text});
