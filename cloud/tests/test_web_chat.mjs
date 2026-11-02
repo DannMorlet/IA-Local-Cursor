@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent} from "../matick_cloud/web/chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent, resetForAuthenticatedSession} from "../matick_cloud/web/chat_payload.mjs";
 
 test("el proveedor alternativo aparece sin fingir inferencia verificada", () => {
   const inventory = {provider: "openai-compatible", configured: true, connected: false,
@@ -236,4 +236,47 @@ test("el borrador UTF-8 excesivo se rechaza sin mutar el historial", () => {
   assert.equal(draft.length,6000); // El borrador sigue disponible para editar.
   const corrected=buildChatPayload([...history,user("pregunta breve")],{model:"modelo-a"});
   assert.deepEqual(corrected.messages,[...history,user("pregunta breve")]);
+});
+
+test("cambiar sesión autenticada invalida chat, modelos y tareas anteriores", () => {
+  const state={chatEpoch:4, inventoryRequestId:7, taskRequestId:10,
+    chat:[user("privado")], previousResponseId:"resp-vieja", conversationModel:"modelo-a",
+    models:[{key:"modelo-a",loaded_instances:[{id:"antigua"}]}], provider:"rest-v1",
+    inventoryFresh:true, selected:"modelo-a", loadedInstances:[{id:"antigua"}],
+    tasks:[{id:1,title:"trabajo de otra sesión"}]};
+  const oldEpoch=state.chatEpoch, oldInventory=state.inventoryRequestId,
+    oldTasks=state.taskRequestId;
+  resetForAuthenticatedSession(state);
+  assert.equal(applyChatResultIfCurrent(oldEpoch,state.chatEpoch,()=>{throw Error("chat antiguo");}),false);
+  assert.equal(inventoryRequestIsCurrent(oldInventory,state.inventoryRequestId,"token-a","token-b"),false);
+  assert.equal(inventoryRequestIsCurrent(oldTasks,state.taskRequestId,"token-a","token-b"),false);
+  assert.deepEqual(state.chat,[]);
+  assert.equal(state.previousResponseId,null);
+  assert.equal(state.conversationModel,null);
+  assert.deepEqual(state.models,[]);
+  assert.equal(state.provider,"");
+  assert.equal(state.inventoryFresh,false);
+  assert.equal(state.selected,"");
+  assert.deepEqual(state.loadedInstances,[]);
+  assert.deepEqual(state.tasks,[]);
+});
+
+test("un refresco viejo de tareas no puede pintar resultados después de reconectar", async () => {
+  const state={chatEpoch:0,inventoryRequestId:0,taskRequestId:1,
+    chat:[],previousResponseId:null,conversationModel:null,models:[],
+    provider:"",inventoryFresh:false,selected:"",loadedInstances:[],tasks:[]};
+  let resolveOld;
+  const pending=new Promise(resolve=>{resolveOld=resolve;});
+  const oldRequest=state.taskRequestId, oldToken="token-a";
+  resetForAuthenticatedSession(state);
+  const currentToken="token-b";
+  resolveOld([{id:1,title:"tarea de token-a"}]);
+  const result=await pending;
+  if(inventoryRequestIsCurrent(oldRequest,state.taskRequestId,oldToken,currentToken))
+    state.tasks=result;
+  assert.deepEqual(state.tasks,[]);
+  const currentRequest=++state.taskRequestId;
+  if(inventoryRequestIsCurrent(currentRequest,state.taskRequestId,currentToken,currentToken))
+    state.tasks=[{id:2,title:"tarea de token-b"}];
+  assert.equal(state.tasks[0].id,2);
 });
