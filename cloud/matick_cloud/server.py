@@ -85,6 +85,12 @@ class EventStore:
         ]
 
 
+def _reject_nonfinite_json(value: str) -> None:
+    # Python json.loads otherwise accepts NaN/Infinity, which are not JSON.
+    # Reject them before they reach SQLite or are forwarded to providers.
+    raise ValueError("Constante JSON no permitida: " + value)
+
+
 def load_tokens(value: str) -> dict[str, str]:
     """Una credencial distinta por componente; fallar si el entorno es inseguro."""
     try:
@@ -298,8 +304,8 @@ class MatickHandler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "Tamaño inválido o superior a 16 KiB"})
             return
         try:
-            data = json.loads(self.rfile.read(size))
-        except (UnicodeDecodeError, json.JSONDecodeError):
+            data = json.loads(self.rfile.read(size), parse_constant=_reject_nonfinite_json)
+        except ValueError:
             self._respond(HTTPStatus.BAD_REQUEST, {"error": "JSON inválido"})
             return
 
