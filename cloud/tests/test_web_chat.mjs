@@ -225,3 +225,15 @@ test("cambiar de modelo invalida la limpieza tardía del envío anterior", () =>
   applyChatResultIfCurrent(epoch,epoch,()=>{pending=false;});
   assert.equal(pending,false);
 });
+
+test("el borrador UTF-8 excesivo se rechaza sin mutar el historial", () => {
+  // maxlength=8000 no impide exceder 16 KiB cuando el texto es multibyte.
+  const history=[user("hola"),assistant("listo")];
+  const snapshot=structuredClone(history);
+  const draft="漢".repeat(6000);
+  assert.throws(()=>buildChatPayload([...history,user(draft)],{model:"modelo-a"}),/16 KiB/);
+  assert.deepEqual(history,snapshot);
+  assert.equal(draft.length,6000); // El borrador sigue disponible para editar.
+  const corrected=buildChatPayload([...history,user("pregunta breve")],{model:"modelo-a"});
+  assert.deepEqual(corrected.messages,[...history,user("pregunta breve")]);
+});

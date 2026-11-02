@@ -125,6 +125,13 @@ class WorkTests(unittest.TestCase):
         self.assertIn("applyChatResultIfCurrent(requestEpoch,state.chatEpoch,resetChatControls)", source)
         self.assertIn('resetChatControls(); // Nueva conversación usable', source)
         self.assertIn('resetChatControls(); // El chat anterior ya no debe bloquear', source)
+        # La prevalidación UTF-8 sucede antes de borrar el borrador y agregar el turno.
+        submit = source.split('$("chat-form").addEventListener("submit",async e=>{', 1)[1].split(
+            '$("prompt").addEventListener("keydown"', 1)[0]
+        self.assertLess(submit.index('request=buildChatPayload([...state.chat'),
+                        submit.index('$("prompt").value="";state.chat.push'))
+        self.assertIn('showMessage("No se pudo enviar: "+err.message)', submit)
+        self.assertIn('$("prompt").focus(); // Conservar el texto', submit)
 
     def test_create_and_update_tasks(self):
         _, data = self.call("/v1/tasks")

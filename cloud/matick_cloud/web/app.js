@@ -280,18 +280,26 @@ $("chat-form").addEventListener("submit",async e=>{
   const readiness=selectedModelReadiness();
   if(!readiness.ok) {showMessage(readiness.reason);return;}
   if($("send-chat").disabled) return;
+  // Validar el tamaño real de UTF-8/JSON antes de borrar el borrador o mutar el historial.
+  const stateful=$("stateful-chat").checked;
+  let request;
+  try {
+    request=buildChatPayload([...state.chat,{role:"user",content:prompt}],{
+      model:state.selected, stateful,
+      previousResponseId:state.previousResponseId,
+      conversationModel:state.conversationModel
+    });
+  }catch(err){
+    showMessage("No se pudo enviar: "+err.message);
+    $("prompt").focus(); // Conservar el texto para corregirlo y reintentar.
+    return;
+  }
   $("prompt").value="";state.chat.push({role:"user",content:prompt});chatBubble("user",prompt);
   $("send-chat").disabled=true;
   $("home-send").disabled=true;
   $("chat-stats").textContent="Generando respuesta del modelo…";
   const requestEpoch=state.chatEpoch;
   try {
-    const stateful=$("stateful-chat").checked;
-    const request=buildChatPayload(state.chat,{
-      model:state.selected, stateful,
-      previousResponseId:state.previousResponseId,
-      conversationModel:state.conversationModel
-    });
     const response=await api("/v1/chat",request);
     // Un cambio de modelo o un chat limpiado invalidan respuestas pendientes.
     applyChatResultIfCurrent(requestEpoch,state.chatEpoch,()=>{

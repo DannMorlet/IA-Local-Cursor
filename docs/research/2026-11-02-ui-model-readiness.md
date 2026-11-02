@@ -114,3 +114,21 @@ El chat compartido https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba
 - [Microsoft DRED](https://learn.microsoft.com/windows/win32/direct3d12/use-dred): breadcrumbs y reportes de fallos GPU pueden mejorar logs DX12. **Candidato futuro** tras resolver botones y carga de modelos; no implementado aquí.
 
 **Diferencia comprobable:** se corrigió un bloqueo de los botones del chat al reiniciar la conversación, no una capacidad de inferencia ni destilación. La referencia https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8 volvió a fallar al abrirse; no se extrajeron requisitos. PC real RTX 5060, smoke visual, pesos cargados, MCP en hardware y calidad retenida >=90% siguen **SIN PROBAR**.
+
+## Ejecución incremental: borrador conservado ante petición demasiado grande (2026-11-02, tarde)
+
+**Error comprobado en el código anterior:** el formulario de chat borraba el `textarea` y agregaba el mensaje al historial antes de llamar a `buildChatPayload`. Un mensaje válido según `maxlength=8000` (p. ej., 6000 caracteres chinos, más de 16 KiB en UTF-8) puede superar el límite HTTP de 16 KiB. El constructor lanzaba `TypeError` después de perder el borrador; el historial retenía el mensaje rechazado, dificultando reintentar.
+
+**Cambio:** prevalidar con `buildChatPayload([...state.chat, mensaje], opciones)` antes de modificar interfaz/historial; si falla, mostrar motivo, conservar borrador, mantener controles habilitados y enfocar el editor. La petición validada se reutiliza al enviar. No se alteran los límites HTTP, los modelos, el motor ni los datos locales.
+
+**Pruebas:** un caso Node para rechazo de 6000 caracteres multibyte sin mutar el historial y reintento válido; guardia Python para orden de prevalidación frente a borrado y aviso visible. El CI puede comprobar estas pruebas, pero no sustituye un smoke test real de teclado/clics en Windows.
+
+**Comparación de investigación con el informe previo (fuentes oficiales consultadas el 2026-11-02):**
+- [TRL DistillationTrainer (documentación actual)](https://huggingface.co/docs/trl/en/distillation_trainer): ahora describe un comando `trl distillation` y el entrenador de uso directo; documentación versionada anterior usaba `trl.experimental`. **Hallazgo nuevo:** el adaptador opcional deberá detectar versión y fijar API antes de cualquier implementación. Maestro/estudiante requieren compatibilidad de vocabulario para la variante descrita; no asumir soporte universal.
+- [PyTorch: reducing compile time](https://docs.pytorch.org/docs/main/user_guide/torch_compiler/compile/programming_model.reducing_compile_time.html): confirma recompilaciones costosas; **sin cambio**: no usar `torch.compile` en arranque obligatorio.
+- [Unsloth](https://github.com/unslothai/unsloth): licencia dual Apache-2.0/AGPL-3.0 según componente; **nueva autorización del usuario** para código externo modular, pero revisar cada archivo, atribución y obligaciones antes de copiar; no copiar UI/assets.
+- [PEFT cuantización](https://huggingface.co/docs/peft/developer_guides/quantization): QLoRA optimiza memoria, **no reduce** parámetros base. Sin cambio.
+- [llama.cpp](https://github.com/ggml-org/llama.cpp): motor GGUF MIT como adaptador opcional; sin incorporación en este cambio.
+- [Microsoft DRED](https://learn.microsoft.com/en-us/windows/win32/direct3d12/use-dred): candidato para diagnóstico DX12, pendiente, no implementado.
+
+**Límites:** no se pudieron leer los requisitos del chat compartido (acceso bloqueado); no se inventaron. RTX 5060, inferencia con pesos, overlay Tamagochi, todos los botones en navegador real y benchmark de calidad >=90% siguen **SIN PROBAR**. No se tocó `C:\\IA\\Matick Studio LM`. Revertir este commit restaura el comportamiento anterior.
