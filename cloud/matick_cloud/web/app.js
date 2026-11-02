@@ -1,6 +1,10 @@
 import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
 const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0, inventoryRequestId:0, loginRequestId:0 };
+function resetChatControls() {
+  $("send-chat").disabled=false;
+  $("home-send").disabled=false;
+}
 function showMessage(message) {
   $("toast").textContent = String(message);
   $("toast").classList.remove("hidden");
@@ -119,6 +123,7 @@ async function refreshModels(){
 function clearModelSelection(){
   if(state.selected) {
     state.chatEpoch++;
+    resetChatControls(); // El chat anterior ya no debe bloquear otro modelo.
     state.chat=[];state.previousResponseId=null;state.conversationModel=null;
     empty($("conversation"),"Modelo descargado o no disponible. Selecciona otro modelo.");
   }
@@ -136,6 +141,7 @@ function selectedModelReadiness() {
 function selectModel(id, fromSettings=false) {
   if(state.selected!==id){
     state.chatEpoch++;
+    resetChatControls();
     state.chat=[];state.previousResponseId=null;state.conversationModel=null;
     empty($("conversation"),"Nueva conversación para el modelo seleccionado.");
   }
@@ -310,11 +316,15 @@ $("chat-form").addEventListener("submit",async e=>{
       chatBubble("assistant","No se generó una respuesta: "+err.message);
     });
   }
-  finally{$("send-chat").disabled=false;$("home-send").disabled=false;}
+  finally{
+    // Una respuesta antigua no debe desbloquear botones de una petición nueva.
+    applyChatResultIfCurrent(requestEpoch,state.chatEpoch,resetChatControls);
+  }
 });
 $("prompt").addEventListener("keydown",e=>{if(e.key==="Enter" && e.ctrlKey){e.preventDefault();$("chat-form").requestSubmit();}});
 $("clear-chat").addEventListener("click",()=>{
   state.chatEpoch++;
+  resetChatControls(); // Nueva conversación usable aunque la petición anterior siga pendiente.
   state.chat=[];state.previousResponseId=null;state.conversationModel=null;
   $("chat-stats").textContent="Nueva conversación sin historial";
   empty($("conversation"),"Nueva conversación lista.");
