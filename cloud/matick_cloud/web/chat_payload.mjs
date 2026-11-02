@@ -28,3 +28,10 @@ export function buildChatPayload(history, {model = "", stateful = false,
   }
   return request;
 }
+
+/** Ignora respuestas de peticiones anteriores tras cambiar de modelo o limpiar chat. */
+export function applyChatResultIfCurrent(requestEpoch, currentEpoch, apply) {
+  if (requestEpoch !== currentEpoch) return false;
+  apply();
+  return true;
+}

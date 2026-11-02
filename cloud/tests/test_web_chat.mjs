@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {buildChatPayload} from "../matick_cloud/web/chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent} from "../matick_cloud/web/chat_payload.mjs";
 
 const user = text => ({role: "user", content: text});
 const assistant = text => ({role: "assistant", content: text});
@@ -36,4 +36,32 @@ test("los historiales inválidos no producen peticiones rotas", () => {
   assert.throws(() => buildChatPayload([]), TypeError);
   assert.throws(() => buildChatPayload([assistant("hola")]), TypeError);
   assert.throws(() => buildChatPayload([user("x".repeat(8001))]), TypeError);
+});
+
+test("respuestas tardías no contaminan otro modelo ni un chat limpiado", async () => {
+  let epoch = 3;
+  const sentEpoch = epoch;
+  let complete;
+  const pending = new Promise(resolve => { complete = resolve; });
+  const messages = [];
+  // Cambiar de modelo mientras la solicitud está pendiente invalida la respuesta.
+  epoch++;
+  complete({content: "respuesta del modelo anterior"});
+  const response = await pending;
+  assert.equal(applyChatResultIfCurrent(sentEpoch, epoch,
+    () => messages.push(response.content)), false);
+  assert.deepEqual(messages, []);
+  // Volver al modelo original no revalida una respuesta antigua.
+  epoch++;
+  assert.equal(applyChatResultIfCurrent(sentEpoch, epoch,
+    () => messages.push(response.content)), false);
+  // Las respuestas actuales sí se muestran.
+  const currentEpoch = epoch;
+  assert.equal(applyChatResultIfCurrent(currentEpoch, epoch,
+    () => messages.push("respuesta actual")), true);
+  assert.deepEqual(messages, ["respuesta actual"]);
+  // Limpiar la conversación también descarta errores pendientes.
+  epoch++;
+  assert.equal(applyChatResultIfCurrent(currentEpoch, epoch,
+    () => messages.push("error tardío")), false);
 });
