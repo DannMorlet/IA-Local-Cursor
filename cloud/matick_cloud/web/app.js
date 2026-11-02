@@ -56,9 +56,10 @@ async function refreshModels(){
   try {
     const [inventory,settings]=await Promise.all([api("/v1/models"),api("/v1/models/settings")]);
     state.models=Array.isArray(inventory.models)?inventory.models:[];
-    $("state-engine").textContent=inventory.connected?"REST v1 disponible":"No configurado";
+    const presentation=modelInventoryPresentation(inventory,settings);
+    $("state-engine").textContent=presentation.engineStatus;
     $("model-count").textContent=state.models.length+" modelos";
-    if(settings.model) selectModel(settings.model,true);
+    if(presentation.selectedModel) selectModel(presentation.selectedModel,true);
     setSavedSettings(settings);
     renderModels();
   }catch(err){empty($("model-list"),"Sin conexión REST v1: "+err.message);}
