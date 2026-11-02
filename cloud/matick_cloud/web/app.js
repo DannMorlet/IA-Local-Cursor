@@ -1,4 +1,4 @@
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness} from "./chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
 const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0 };
 function showMessage(message) {
@@ -68,6 +68,8 @@ $("login-form").addEventListener("submit", async e=>{
 });
 function empty(element,message) {element.replaceChildren();const p=document.createElement("div");p.className="empty";p.textContent=message;element.append(p);}
 async function refreshModels(){
+  state.inventoryFresh=false;
+  $("home-model-chip").textContent="Comprobando estado del modelo…";
   try {
     const [inventory,settings]=await Promise.all([api("/v1/models"),api("/v1/models/settings")]);
     state.models=Array.isArray(inventory.models)?inventory.models:[];
@@ -81,10 +83,13 @@ async function refreshModels(){
     else clearModelSelection();
     setSavedSettings(settings);
     renderModels();
+    return true;
   }catch(err){
     state.inventoryFresh=false;
     $("state-engine").textContent="No se pudo verificar el motor";
+    $("home-model-chip").textContent="Estado del modelo sin verificar";
     empty($("model-list"),"No se pudo consultar modelos: "+err.message);
+    return false;
   }
 }
 function clearModelSelection(){
@@ -182,10 +187,9 @@ async function runModel(action){
       showMessage("Parámetros del modelo guardados.");
     }else if(action==="load"){
       await api("/v1/models/settings",config);
-      showMessage("Se solicitó cargar el modelo; comprueba RAM y VRAM.");
       await api("/v1/models/load",{model:config.model,params:config.load});
-      showMessage("Modelo cargado en el motor conectado.");
       await refreshModels();
+      showMessage(modelLoadFeedback(state,config.model));
     }else if(action==="unload"){
       const instance=state.loadedInstances[0]?.id;
       if(!instance)throw new Error("Selecciona una instancia que esté cargada");
