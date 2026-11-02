@@ -1,4 +1,4 @@
-"use strict";
+import {buildChatPayload} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
 const state = { token:"", models:[], selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null };
 function showMessage(message) {
@@ -198,9 +198,11 @@ $("chat-form").addEventListener("submit",async e=>{
   $("send-chat").disabled=true;
   try {
     const stateful=$("stateful-chat").checked;
-    const request={messages:state.chat.slice(-12),stateful};
-    if(stateful && state.previousResponseId && state.conversationModel===state.selected)
-      request.previous_response_id=state.previousResponseId;
+    const request=buildChatPayload(state.chat,{
+      model:state.selected, stateful,
+      previousResponseId:state.previousResponseId,
+      conversationModel:state.conversationModel
+    });
     const response=await api("/v1/chat",request);
     chatBubble("assistant",response.content);
     state.chat.push({role:"assistant",content:response.content});

@@ -143,9 +143,12 @@ jobs:
           node-version: '22'
       - name: Comprobar ToolHub sin instalar SDK ni paquetes externos
         run: node --check integrations/toolhub/src/matick-api.mjs
-      - name: Comprobar sintaxis del panel Matick Work
+      - name: Probar chat del panel Matick Work
         id: web
-        run: node --check cloud/matick_cloud/web/app.js
+        run: |
+          node --check cloud/matick_cloud/web/app.js
+          node --check cloud/matick_cloud/web/chat_payload.mjs
+          node --test cloud/tests/test_web_chat.mjs
       - name: Comprobar registro MCP y adaptador sin servidores externos
         id: toolhub_tests
         run: node --test integrations/toolhub/tests/*.test.mjs
