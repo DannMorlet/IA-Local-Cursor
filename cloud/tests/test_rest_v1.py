@@ -178,7 +178,8 @@ class RestTests(unittest.TestCase):
                 "messages": [{"role": "user", "content": "hola"}]
             })
         self.assertEqual(result["content"], "OK")
-        self.assertEqual(result["stats"], {})
+        self.assertEqual(set(result["stats"]), {"http_roundtrip_ms"})
+        self.assertGreaterEqual(result["stats"]["http_roundtrip_ms"], 0)
         self.assertIsNone(result["model_instance_id"])
 
     def test_permissions_and_invalid_parameters(self):
