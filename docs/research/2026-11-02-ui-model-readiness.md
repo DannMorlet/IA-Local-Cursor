@@ -132,3 +132,21 @@ El chat compartido https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba
 - [Microsoft DRED](https://learn.microsoft.com/en-us/windows/win32/direct3d12/use-dred): candidato para diagnóstico DX12, pendiente, no implementado.
 
 **Límites:** no se pudieron leer los requisitos del chat compartido (acceso bloqueado); no se inventaron. RTX 5060, inferencia con pesos, overlay Tamagochi, todos los botones en navegador real y benchmark de calidad >=90% siguen **SIN PROBAR**. No se tocó `C:\\IA\\Matick Studio LM`. Revertir este commit restaura el comportamiento anterior.
+
+## Ejecución incremental: aislamiento de sesiones al reconectar (2026-11-02, 17:56 CST)
+
+**Defecto identificado en código:** una autenticación válida con otro token conservaba `chatEpoch`, historial, `previousResponseId`, selección de modelo y tareas hasta que las peticiones nuevas finalizaran. Una respuesta de chat o tareas iniciada bajo el token anterior podía mostrarse después de reconectar. No se afirma explotación; es una carrera de estado de UI.
+
+**Corrección:** `resetForAuthenticatedSession` invalida solicitudes de chat, inventario y tareas, vacía historiales y selección y restablece la interfaz antes de consultar la nueva sesión. `refreshTasks` descarta respuestas y errores tardíos si cambió el token o el identificador de consulta. La reconexión fallida sigue conservando la sesión vigente (comportamiento anterior).
+
+**Pruebas nuevas:** Node comprueba invalidación de tres contadores, borrado de estado y orden de resolución de promesas de tareas. Son pruebas unitarias simuladas, no prueba visual real ni inferencia con pesos. Reversión: revertir los commits de esta sección del PR #46. No se modificaron SQLite, instalador, DirectX/GDI ni datos locales.
+
+**Comparación de investigación con informe anterior (fuentes oficiales consultadas):**
+- [TRL DistillationTrainer estable](https://huggingface.co/docs/trl/en/distillation_trainer): existe CLI `trl distillation` y soporte LoRA; la [documentación de main](https://huggingface.co/docs/trl/main/distillation_trainer) advierte que requiere instalación desde fuente. **Decisión:** fijar versión estable antes de implementar adaptador opcional y verificar memoria con maestro separado; no usar API de main sin versión.
+- [TRL AsyncDistillationTrainer](https://huggingface.co/docs/trl/main/async_distillation_trainer): **nuevo límite operativo**: requiere vLLM, Transformers >=5.2, kernels y restricciones de dependencias/FSDP2. No asumir compatibilidad nativa Windows 11 ni ejecución en RTX 5060 8 GB sin pruebas; posponer.
+- [PEFT cuantización](https://huggingface.co/docs/peft/main/developer_guides/quantization): QLoRA reduce memoria de ajuste, no el número de parámetros del modelo base; sin cambio en criterio de calidad.
+- [llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT): candidato para adaptador GGUF opcional aislado, sin afirmar motor propio ni descarga implícita.
+- [Unsloth](https://github.com/unslothai/unsloth): evaluar licencia por componente antes de cualquier reutilización; no se incorporó código ni arte ajeno en este cambio.
+- [Microsoft Direct3D 12](https://learn.microsoft.com/en-us/windows/win32/direct3d12/directx-12-programming-guide): sin cambios en ruta DX12/GDI; requiere validación de hardware real.
+
+El chat compartido https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8 no se pudo recuperar (acceso deshabilitado); no se inventaron requisitos. Tamagochi overlay, pruebas de todos los botones, inferencia con pesos, RTX 5060, MCP real y benchmark de retención >=90% siguen pendientes.
