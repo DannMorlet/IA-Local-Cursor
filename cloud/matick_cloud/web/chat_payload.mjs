@@ -94,3 +94,19 @@ export function inventoryRequestIsCurrent(requestId, activeId, requestToken, act
 export function loginAttemptIsCurrent(requestId, activeId, requestToken, enteredToken) {
   return requestId === activeId && Boolean(requestToken) && requestToken === enteredToken;
 }
+
+/** Al autenticar una sesión nueva, nunca heredar estado de otra cuenta/token. */
+export function resetForAuthenticatedSession(state) {
+  state.chatEpoch++;
+  state.inventoryRequestId++;
+  state.taskRequestId++;
+  state.chat=[];
+  state.previousResponseId=null;
+  state.conversationModel=null;
+  state.models=[];
+  state.provider="";
+  state.inventoryFresh=false;
+  state.selected="";
+  state.loadedInstances=[];
+  state.tasks=[];
+}
