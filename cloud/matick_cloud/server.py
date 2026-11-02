@@ -370,7 +370,11 @@ class MatickHandler(BaseHTTPRequestHandler):
             except (ProviderUnavailable, ModelOffline) as exc:
                 self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
                 return
-            except (ProviderResponseError, ModelError, ValueError) as exc:
+            except ValueError as exc:
+                # Invalid client parameters are not upstream failures.
+                self._respond(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            except (ProviderResponseError, ModelError) as exc:
                 self._respond(HTTPStatus.BAD_GATEWAY, {"error": str(exc)})
                 return
             if "text/plain" in self.headers.get("Accept", ""):
