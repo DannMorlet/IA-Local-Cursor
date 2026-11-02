@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation} from "../matick_cloud/web/chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness} from "../matick_cloud/web/chat_payload.mjs";
 
 test("el proveedor alternativo aparece sin fingir inferencia verificada", () => {
   const inventory = {provider: "openai-compatible", configured: true, connected: false,
@@ -99,4 +99,31 @@ test("respuestas tardías no contaminan otro modelo ni un chat limpiado", async 
   epoch++;
   assert.equal(applyChatResultIfCurrent(currentEpoch, epoch,
     () => messages.push("error tardío")), false);
+});
+
+
+test("el chat exige autenticación, inventario vigente y modelo disponible", () => {
+  const ready = {token:"token-local", inventoryFresh:true, selected:"modelo-a",
+    provider:"rest-v1", models:[{key:"modelo-a", loaded_instances:[{id:"instancia-a"}]}]};
+  assert.match(modelReadiness({...ready, token:""}).reason, /Conecta/);
+  assert.match(modelReadiness({...ready, inventoryFresh:false}).reason, /Actualiza/);
+  assert.match(modelReadiness({...ready, selected:""}).reason, /Selecciona/);
+  assert.match(modelReadiness({...ready, selected:"modelo-b"}).reason, /ya no aparece/);
+  assert.match(modelReadiness({...ready, models:[]}).reason, /ya no aparece/);
+});
+
+test("REST v1 no permite chatear con modelo solo seleccionado pero sin cargar", () => {
+  const ready = {token:"token-local", inventoryFresh:true, selected:"modelo-a",
+    provider:"rest-v1", models:[{key:"modelo-a", loaded_instances:[]}]};
+  assert.equal(modelReadiness(ready).ok, false);
+  assert.match(modelReadiness(ready).reason, /NO cargado/);
+  assert.deepEqual(modelReadiness({...ready,
+    models:[{key:"modelo-a", loaded_instances:[{id:"instancia-a"}]}]}),
+    {ok:true, verifiedInference:false});
+});
+
+test("proveedor compatible no presume inferencia verificada sin pesos reales", () => {
+  const state = {token:"token-local", inventoryFresh:true, selected:"modelo-a",
+    provider:"openai-compatible", models:[{key:"modelo-a", source:"openai-compatible"}]};
+  assert.deepEqual(modelReadiness(state), {ok:true, verifiedInference:false});
 });
