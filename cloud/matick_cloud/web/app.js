@@ -1,6 +1,6 @@
-import {buildChatPayload} from "./chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
-const state = { token:"", models:[], selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null };
+const state = { token:"", models:[], selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0 };
 function showMessage(message) {
   $("toast").textContent = String(message);
   $("toast").classList.remove("hidden");
@@ -64,7 +64,11 @@ async function refreshModels(){
   }catch(err){empty($("model-list"),"Sin conexión REST v1: "+err.message);}
 }
 function selectModel(id, fromSettings=false) {
-  if(state.selected!==id){state.chat=[];state.previousResponseId=null;state.conversationModel=null;}
+  if(state.selected!==id){
+    state.chatEpoch++;
+    state.chat=[];state.previousResponseId=null;state.conversationModel=null;
+    empty($("conversation"),"Nueva conversación para el modelo seleccionado.");
+  }
   state.selected=id;
   $("model-id").value=id;
   $("model-current").textContent=id;
@@ -196,6 +200,7 @@ $("chat-form").addEventListener("submit",async e=>{
   const prompt=$("prompt").value.trim();if(!prompt)return;
   $("prompt").value="";state.chat.push({role:"user",content:prompt});chatBubble("user",prompt);
   $("send-chat").disabled=true;
+  const requestEpoch=state.chatEpoch;
   try {
     const stateful=$("stateful-chat").checked;
     const request=buildChatPayload(state.chat,{
@@ -204,7 +209,9 @@ $("chat-form").addEventListener("submit",async e=>{
       conversationModel:state.conversationModel
     });
     const response=await api("/v1/chat",request);
-    chatBubble("assistant",response.content);
+    // Un cambio de modelo o un chat limpiado invalidan respuestas pendientes.
+    applyChatResultIfCurrent(requestEpoch,state.chatEpoch,()=>{
+      chatBubble("assistant",response.content);
     state.chat.push({role:"assistant",content:response.content});
     state.previousResponseId=stateful?(response.response_id||null):null;
     state.conversationModel=state.selected;
@@ -217,11 +224,17 @@ $("chat-form").addEventListener("submit",async e=>{
     if(Array.isArray(response.parameters_not_forwarded) && response.parameters_not_forwarded.length)
       details.push("No enviados al motor: "+response.parameters_not_forwarded.join(", "));
     $("chat-stats").textContent=details.join(" · ")||"Respuesta recibida";
-  }catch(err){chatBubble("assistant","No se generó una respuesta: "+err.message);}
+    });
+  }catch(err){
+    applyChatResultIfCurrent(requestEpoch,state.chatEpoch,()=>{
+      chatBubble("assistant","No se generó una respuesta: "+err.message);
+    });
+  }
   finally{$("send-chat").disabled=false;}
 });
 $("prompt").addEventListener("keydown",e=>{if(e.key==="Enter" && e.ctrlKey){e.preventDefault();$("chat-form").requestSubmit();}});
 $("clear-chat").addEventListener("click",()=>{
+  state.chatEpoch++;
   state.chat=[];state.previousResponseId=null;state.conversationModel=null;
   $("chat-stats").textContent="Nueva conversación sin historial";
   empty($("conversation"),"Nueva conversación lista.");
