@@ -88,6 +88,12 @@ class RestV1Bridge:
                 or parts.path not in ("", "/") or parts.query or parts.fragment
                 or parts.username or parts.password):
                 raise ValueError("MATICK_REST_V1_URL inválida")
+            # urlsplit does not validate a malformed/out-of-range port until
+            # .port is accessed. Fail during setup instead of at HTTP request.
+            try:
+                _ = parts.port
+            except ValueError as exc:
+                raise ValueError("MATICK_REST_V1_URL contiene un puerto inválido") from exc
             if parts.scheme == "http" and parts.hostname.lower() not in ("localhost", "127.0.0.1", "::1"):
                 raise ValueError("REST v1 remoto requiere HTTPS")
             if parts.scheme == "https" and not token:
