@@ -41,7 +41,7 @@ test("los historiales inválidos no producen peticiones rotas", () => {
 
 test("el cuerpo HTTP del chat respeta 16 KiB reales con UTF-8 y JSON", () => {
   // El servidor limita Content-Length, no la cantidad de caracteres JavaScript.
-  const history = [user("漢".repeat(5000)), assistant("respuesta"), user("🥭".repeat(3000))];
+  const history = [user("hola"), assistant("漢".repeat(5000)), user("🥭".repeat(3000))];
   const request = buildChatPayload(history, {model: "modelo-ñ"});
   assert.deepEqual(request.messages, [user("🥭".repeat(3000))]);
   assert.ok(new TextEncoder().encode(JSON.stringify(request)).byteLength <= 16 * 1024);
