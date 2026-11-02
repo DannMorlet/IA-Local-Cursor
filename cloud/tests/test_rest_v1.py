@@ -143,7 +143,8 @@ class RestTests(unittest.TestCase):
                 "stateful": True,
                 "messages": [{"role": "user", "content": "hola"}]
             })
-        self.assertEqual(invalid.exception.code, 502)
+        # Invalid previous_response_id is a client error, not an upstream fault.
+        self.assertEqual(invalid.exception.code, 400)
 
     def test_malformed_chat_upstream_returns_502_and_recovers(self):
         """Valid JSON with a broken REST v1 shape must never drop the HTTP connection."""
