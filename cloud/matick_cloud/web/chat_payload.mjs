@@ -38,6 +38,19 @@ export function buildChatPayload(history, {model = "", stateful = false,
   return request;
 }
 
+/** Distingue un modelo configurado de un motor que haya respondido realmente. */
+export function modelInventoryPresentation(inventory, settings = {}) {
+  const models = Array.isArray(inventory?.models) ? inventory.models : [];
+  const alternative = inventory?.provider === "openai-compatible" &&
+    inventory?.configured === true;
+  return {
+    engineStatus: alternative ? "Proveedor compatible configurado (sin verificar)" :
+      inventory?.connected ? "REST v1 disponible" : "No configurado",
+    selectedModel: settings?.model ||
+      (alternative && models.length === 1 ? models[0].key : ""),
+  };
+}
+
 /** Ignora respuestas de peticiones anteriores tras cambiar de modelo o limpiar chat. */
 export function applyChatResultIfCurrent(requestEpoch, currentEpoch, apply) {
   if (requestEpoch !== currentEpoch) return false;

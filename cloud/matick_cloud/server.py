@@ -236,8 +236,18 @@ class MatickHandler(BaseHTTPRequestHandler):
             return
         if route.path == "/v1/models":
             if not self.server.rest.configured:
-                self._respond(HTTPStatus.OK, {"models": [], "connected": False,
-                    "provider": "rest-v1", "active": self.server.model_state.get()})
+                # Expose the configured alternative model so the chat UI can
+                # select it. This is configuration metadata, NOT a live probe.
+                alternative = self.server.provider
+                configured = alternative.configured
+                models = ([{"key": alternative.model, "name": alternative.model,
+                            "type": "llm", "loaded_instances": [],
+                            "source": "openai-compatible"}] if configured else [])
+                self._respond(HTTPStatus.OK, {
+                    "models": models, "connected": False, "configured": configured,
+                    "provider": "openai-compatible" if configured else "rest-v1",
+                    "active": self.server.model_state.get(),
+                })
                 return
             try:
                 models = self.server.rest.models()

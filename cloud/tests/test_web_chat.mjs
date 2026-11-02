@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {buildChatPayload, applyChatResultIfCurrent} from "../matick_cloud/web/chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation} from "../matick_cloud/web/chat_payload.mjs";
+
+test("el proveedor alternativo aparece sin fingir inferencia verificada", () => {
+  const inventory = {provider: "openai-compatible", configured: true, connected: false,
+    models: [{key: "modelo-alternativo", source: "openai-compatible"}]};
+  assert.deepEqual(modelInventoryPresentation(inventory, {model: null}), {
+    engineStatus: "Proveedor compatible configurado (sin verificar)",
+    selectedModel: "modelo-alternativo",
+  });
+  assert.equal(modelInventoryPresentation(inventory, {model: "modelo-guardado"}).selectedModel,
+               "modelo-guardado");
+  assert.deepEqual(modelInventoryPresentation({models: [], connected: false}, {}), {
+    engineStatus: "No configurado", selectedModel: "",
+  });
+  assert.equal(modelInventoryPresentation({connected: true, models: []}, {}).engineStatus,
+               "REST v1 disponible");
+});
 
 const user = text => ({role: "user", content: text});
 const assistant = text => ({role: "assistant", content: text});

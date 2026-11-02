@@ -1,4 +1,4 @@
-import {buildChatPayload, applyChatResultIfCurrent} from "./chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
 const state = { token:"", models:[], selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0 };
 function showMessage(message) {
@@ -56,12 +56,13 @@ async function refreshModels(){
   try {
     const [inventory,settings]=await Promise.all([api("/v1/models"),api("/v1/models/settings")]);
     state.models=Array.isArray(inventory.models)?inventory.models:[];
-    $("state-engine").textContent=inventory.connected?"REST v1 disponible":"No configurado";
+    const presentation=modelInventoryPresentation(inventory,settings);
+    $("state-engine").textContent=presentation.engineStatus;
     $("model-count").textContent=state.models.length+" modelos";
-    if(settings.model) selectModel(settings.model,true);
+    if(presentation.selectedModel) selectModel(presentation.selectedModel,true);
     setSavedSettings(settings);
     renderModels();
-  }catch(err){empty($("model-list"),"Sin conexión REST v1: "+err.message);}
+  }catch(err){empty($("model-list"),"No se pudo consultar modelos: "+err.message);}
 }
 function selectModel(id, fromSettings=false) {
   if(state.selected!==id){
@@ -100,7 +101,8 @@ function renderModels(){
       +(model.params_string?" · "+model.params_string:"")
       +(model.quantization?" · "+model.quantization:"")
       +(model.max_context_length?" · "+model.max_context_length+" ctx":"")
-      +" · "+(instances?"Cargado":"No cargado");
+      +" · "+(model.source==="openai-compatible"?
+        "Proveedor configurado; inferencia sin verificar":(instances?"Cargado":"No cargado"));
     btn.append(title,detail);btn.addEventListener("click",()=>selectModel(model.key));
     container.append(btn);
   }
