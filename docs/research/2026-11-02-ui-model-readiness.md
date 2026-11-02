@@ -33,3 +33,19 @@ La última referencia confirmada en `main` es PR #45 (rechazo de NaN/Infinity en
 ## Referencia adicional no disponible
 
 Se intentó abrir https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8 y el acceso devolvió error; no se extrajeron requisitos de ese enlace ni se inventó su contenido.
+
+## Seguimiento incremental: carga asíncrona y verificación de estado (PR #46)
+
+- **Fallo adicional corregido:** la interfaz mostraba `Modelo cargado en el motor conectado` apenas `POST /v1/models/load` respondía, aunque la instancia todavía no figurara en `GET /v1/models`. La aceptación de la solicitud no es prueba de carga real.
+- **Cambio:** se vuelve a consultar el inventario tras la petición; los mensajes distinguen `carga solicitada`, `instancia declarada cargada`, `estado no verificable` y `proveedor compatible sin inferencia acreditada`. Mientras se refresca el inventario, `inventoryFresh=false` bloquea nuevos envíos basados en un catálogo anterior.
+- **Pruebas agregadas:** `cloud/tests/test_web_chat.mjs` cubre cinco estados de confirmación y `cloud/tests/test_work.py` impide recuperar el aviso engañoso. Aún no se ha probado una carga real de pesos, ni la latencia o VRAM de RTX 5060.
+- **Reversión:** revertir los commits de este PR; no se cambió la API, el esquema SQLite, el instalador, DX12 ni GDI.
+
+### Fuentes oficiales revisadas y comparación con el informe anterior
+
+- [PEFT LoRA, documentación oficial](https://huggingface.co/docs/peft/main/package_reference/lora): `merge_and_unload()` produce un modelo base+adaptador fusionado, pero no elimina por sí solo parámetros de la arquitectura base; la guía advierte que fusionar solo algunos adaptadores activos puede omitir otros. **Decisión:** no introducir fusión automática en el núcleo; diseñar una tarea opcional con verificación explícita de adaptadores y benchmark maestro/estudiante.
+- [PyTorch `torch.compile`](https://docs.pytorch.org/docs/stable/generated/torch.compile.html): recompilaciones por cambios de guardas y límites de recompilación pueden generar costos de arranque. **Decisión:** cualquier experimento de compilación será opcional, con mediciones de arranque en frío y tiempo de inferencia; no añadirlo a la UI principal sin evidencia.
+- [llama.cpp, versiones oficiales](https://github.com/ggml-org/llama.cpp/releases): existen artefactos Windows x64 CPU/CUDA/Vulkan. **Decisión:** investigar una sonda GGUF externa y aislada, con verificación de licencias y rendimiento; no llamar `motor propio` a un runtime ajeno.
+- [Unsloth, repositorio oficial](https://github.com/unslothai/unsloth): distingue paquete central Apache-2.0 de componentes opcionales de UI AGPL-3.0. **Decisión:** mantener consulta documental exclusivamente; no copiar código, diseño ni recursos.
+
+**Diferencia concreta respecto al informe anterior:** se resolvió una afirmación engañosa sobre carga de modelos con pruebas automáticas; no se incorporaron dependencias, motores externos ni técnicas de entrenamiento. La retención de calidad >=90% sigue SIN PROBAR. El chat compartido continúa inaccesible en esta revisión; no se atribuyen requisitos a su contenido.
