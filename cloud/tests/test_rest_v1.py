@@ -1,5 +1,6 @@
 """Pruebas REST v1 Matick: modelo, perfiles, permisos y chat sin modelos reales."""
 import json
+from concurrent.futures import ThreadPoolExecutor
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -256,6 +257,47 @@ class RestTests(unittest.TestCase):
         self.assertEqual(self.call("/v1/models/load", {
             "model": "google/gemma-demo"
         })["loaded"]["status"], "loaded")
+
+
+
+class ModelStateAtomicTests(unittest.TestCase):
+    def test_concurrent_partial_updates_preserve_both_fields(self):
+        """Two independent API handlers must not lose concurrent settings."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "model-state.sqlite"
+            first = ModelState(path)
+            second = ModelState(path)
+            original_get = ModelState.get
+            rendezvous = threading.Barrier(2)
+
+            def synchronized_get(instance):
+                snapshot = original_get(instance)
+                rendezvous.wait(timeout=3)
+                return snapshot
+
+            # The old read-then-write implementation deterministically reads
+            # the same snapshot in both threads. A transactional implementation
+            # need not call get(), so the patch does not alter its behavior.
+            with patch.object(ModelState, "get", synchronized_get):
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    model = pool.submit(first.set, {"model": "modelo-a"})
+                    generation = pool.submit(
+                        second.set, {"generation": {"temperature": 0.25}})
+                    model.result(timeout=10)
+                    generation.result(timeout=10)
+
+            saved = ModelState(path).get()
+            self.assertEqual(saved["model"], "modelo-a")
+            self.assertEqual(saved["generation"], {"temperature": 0.25})
+
+    def test_invalid_partial_update_keeps_previous_settings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = ModelState(Path(directory) / "model-state.sqlite")
+            state.set({"model": "modelo-a", "generation": {"top_p": 0.8}})
+            with self.assertRaises(ValueError):
+                state.set({"model": "modelo-b", "generation": {"temperature": 5}})
+            self.assertEqual(state.get()["model"], "modelo-a")
+            self.assertEqual(state.get()["generation"], {"top_p": 0.8})
 
 
 if __name__ == "__main__":

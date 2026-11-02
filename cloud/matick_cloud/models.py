@@ -253,14 +253,25 @@ class ModelState:
     def set(self, data):
         if not isinstance(data, dict) or set(data) - {"model", "generation", "load"}:
             raise ValueError("Configuración de modelo inválida")
-        previous = self.get()
+        # Validate the whole patch before acquiring a database write lock.
+        changes = {}
         if "model" in data:
-            previous["model"] = valid_model_id(data["model"]) if data["model"] is not None else None
+            changes["model"] = valid_model_id(data["model"]) if data["model"] is not None else None
         if "generation" in data:
-            previous["generation"] = valid_params(data["generation"], PARAMS)
+            changes["generation"] = valid_params(data["generation"], PARAMS)
         if "load" in data:
-            previous["load"] = valid_params(data["load"], LOAD_PARAMS)
-        with self.lock, sqlite3.connect(self.path) as db:
+            changes["load"] = valid_params(data["load"], LOAD_PARAMS)
+
+        # BEGIN IMMEDIATE serializes read-modify-write across *different*
+        # ModelState instances/processes, not just threads sharing self.lock.
+        # Without it, concurrent partial updates silently overwrite fields.
+        with self.lock, sqlite3.connect(self.path, timeout=10) as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT value FROM model_state WHERE key='active'").fetchone()
+            previous = json.loads(row[0]) if row else {
+                "model": None, "generation": {}, "load": {}
+            }
+            previous.update(changes)
             db.execute("INSERT OR REPLACE INTO model_state(key,value) VALUES('active',?)",
                        (json.dumps(previous, ensure_ascii=False),))
         return previous
