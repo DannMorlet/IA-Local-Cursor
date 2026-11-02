@@ -70,3 +70,15 @@ export function modelReadiness({token="", inventoryFresh=false, selected="",
     return {ok:false, reason:"Modelo elegido pero NO cargado en RAM/VRAM. En Modelos IA pulsa Cargar."};
   return {ok:true, verifiedInference:false};
 }
+
+/** La aceptación de /models/load no demuestra que el modelo esté en memoria. */
+export function modelLoadFeedback({provider="", inventoryFresh=false, models=[]}={}, model="") {
+  if(!inventoryFresh) return "Carga solicitada, pero no se pudo comprobar el estado del motor.";
+  const item=Array.isArray(models) ? models.find(row=>row?.key===model) : null;
+  if(!item) return "Carga solicitada; el modelo no aparece en el catálogo actualizado.";
+  if(provider!=="rest-v1")
+    return "Solicitud enviada al proveedor; inferencia todavía sin verificar.";
+  return Array.isArray(item.loaded_instances) && item.loaded_instances.length ?
+    "Instancia declarada cargada por REST v1; inferencia aún sin verificar." :
+    "Carga solicitada; REST v1 todavía no confirma una instancia cargada.";
+}
