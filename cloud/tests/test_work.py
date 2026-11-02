@@ -112,6 +112,8 @@ class WorkTests(unittest.TestCase):
         self.assertIn('data-focus="task-board"', markup)
         self.assertIn('id="home-send"', markup)
         self.assertIn("selectedModelReadiness()", source)
+        self.assertIn("const requestId=++state.inventoryRequestId;", source)
+        self.assertIn("inventoryRequestIsCurrent(requestId,state.inventoryRequestId,requestToken,state.token)", source)
 
     def test_create_and_update_tasks(self):
         _, data = self.call("/v1/tasks")
