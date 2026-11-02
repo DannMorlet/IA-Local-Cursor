@@ -101,7 +101,8 @@ function renderModels(){
       +(model.params_string?" · "+model.params_string:"")
       +(model.quantization?" · "+model.quantization:"")
       +(model.max_context_length?" · "+model.max_context_length+" ctx":"")
-      +" · "+(instances?"Cargado":"No cargado");
+      +" · "+(model.source==="openai-compatible"?
+        "Proveedor configurado; inferencia sin verificar":(instances?"Cargado":"No cargado"));
     btn.append(title,detail);btn.addEventListener("click",()=>selectModel(model.key));
     container.append(btn);
   }
