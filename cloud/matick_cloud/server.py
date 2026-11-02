@@ -165,6 +165,7 @@ class MatickHandler(BaseHTTPRequestHandler):
         route = urlsplit(self.path)
         web_routes = {"/app": ("index.html", "text/html; charset=utf-8"),
                       "/app/app.js": ("app.js", "text/javascript; charset=utf-8"),
+                      "/app/chat_payload.mjs": ("chat_payload.mjs", "text/javascript; charset=utf-8"),
                       "/app/style.css": ("style.css", "text/css; charset=utf-8")}
         if route.path in web_routes:
             filename, mime = web_routes[route.path]
