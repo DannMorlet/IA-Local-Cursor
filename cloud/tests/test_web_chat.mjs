@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness} from "../matick_cloud/web/chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback} from "../matick_cloud/web/chat_payload.mjs";
 
 test("el proveedor alternativo aparece sin fingir inferencia verificada", () => {
   const inventory = {provider: "openai-compatible", configured: true, connected: false,
@@ -126,4 +126,17 @@ test("proveedor compatible no presume inferencia verificada sin pesos reales", (
   const state = {token:"token-local", inventoryFresh:true, selected:"modelo-a",
     provider:"openai-compatible", models:[{key:"modelo-a", source:"openai-compatible"}]};
   assert.deepEqual(modelReadiness(state), {ok:true, verifiedInference:false});
+});
+
+test("cargar no significa inferir: confirma solo la instancia reportada por REST v1", () => {
+  const state={provider:"rest-v1", inventoryFresh:true,
+    models:[{key:"modelo-a",loaded_instances:[]}]};
+  assert.match(modelLoadFeedback(state,"modelo-a"), /todavía no confirma/);
+  assert.match(modelLoadFeedback({...state,models:[{key:"modelo-a",
+    loaded_instances:[{id:"instancia-1"}]}]},"modelo-a"), /declarada cargada/);
+  assert.match(modelLoadFeedback({...state,inventoryFresh:false},"modelo-a"),
+    /no se pudo comprobar/);
+  assert.match(modelLoadFeedback(state,"modelo-inexistente"), /no aparece/);
+  assert.match(modelLoadFeedback({...state,provider:"openai-compatible"},"modelo-a"),
+    /inferencia todavía sin verificar/);
 });
