@@ -78,10 +78,15 @@ def probe(base_url: str, token: str, model: str = "", timeout: float = 30.0) -> 
         raise ProbeError("MODELO_NO_COINCIDE")
     stats = data.get("stats") if isinstance(data.get("stats"), dict) else {}
     observed = {}
-    for key in ("input_tokens", "total_output_tokens", "tokens_per_second"):
+    # Los contadores son enteros; JavaScript pierde precisión por encima de 2^53-1.
+    # La velocidad es una magnitud continua, pero debe ser finita y no negativa.
+    for key in ("input_tokens", "total_output_tokens"):
         value = stats.get(key)
-        if type(value) in (int, float) and math.isfinite(value) and value >= 0:
+        if type(value) is int and 0 <= value <= (1 << 53) - 1:
             observed[key] = value
+    rate = stats.get("tokens_per_second")
+    if type(rate) in (int, float) and math.isfinite(rate) and rate >= 0:
+        observed["tokens_per_second"] = rate
     return {
         "estado": "APROBADO_CONTRATO_HTTP",
         "inferencia_con_pesos_reales": "SIN_PROBAR",
