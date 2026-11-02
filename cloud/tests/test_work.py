@@ -1,5 +1,6 @@
 """Verifica panel web estático y tareas persistentes sin navegador externo."""
 import json
+from html.parser import HTMLParser
 from pathlib import Path
 import tempfile
 import threading
@@ -74,6 +75,37 @@ class WorkTests(unittest.TestCase):
         self.assertIn('querySelectorAll(".nav, .rail-button, .mode-tab")', source)
         self.assertNotIn('fonts.googleapis.com', markup)
         self.assertNotIn('https://', markup)
+
+    def test_buttons_link_to_actual_handlers(self):
+        class Buttons(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.buttons = []
+                self.ids = []
+            def handle_starttag(self, tag, attrs):
+                a = dict(attrs)
+                if a.get("id"):
+                    self.ids.append(a["id"])
+                if tag == "button":
+                    self.buttons.append(a)
+        _, html = self.call("/app")
+        _, js = self.call("/app/app.js")
+        markup, source = html.decode(), js.decode()
+        parsed = Buttons()
+        parsed.feed(markup)
+        self.assertEqual(len(parsed.ids), len(set(parsed.ids)))
+        for button in parsed.buttons:
+            if button.get("data-go") or button.get("data-view"):
+                name = button.get("data-go") or button.get("data-view")
+                self.assertIn('id="view-' + name + '"', markup)
+            elif button.get("id"):
+                self.assertIn('$("' + button["id"] + '").addEventListener', source)
+            else:
+                self.assertEqual(button.get("type"), "submit")
+        self.assertIn('id="cancel-login"', markup)
+        self.assertIn('data-focus="task-board"', markup)
+        self.assertIn('id="home-send"', markup)
+        self.assertIn("selectedModelReadiness()", source)
 
     def test_create_and_update_tasks(self):
         _, data = self.call("/v1/tasks")
