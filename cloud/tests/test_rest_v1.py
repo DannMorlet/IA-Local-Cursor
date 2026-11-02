@@ -247,6 +247,18 @@ class RestTests(unittest.TestCase):
         # A rejected request must not poison the next valid inference request.
         self.assertIn("Respuesta v1:", self.call("/v1/chat", prompt)["content"])
 
+    def test_rest_v1_rejects_invalid_ports_before_network(self):
+        """Malformed REST v1 ports must fail configuration, not crash a request."""
+        for invalid in (
+            "http://127.0.0.1:invalid",
+            "http://127.0.0.1:65536",
+            "https://example.com:65536",
+        ):
+            with self.subTest(url=invalid):
+                with self.assertRaisesRegex(ValueError, "MATICK_REST_V1_URL"):
+                    RestV1Bridge(invalid, token="token-de-prueba")
+        self.assertTrue(RestV1Bridge("http://127.0.0.1:1234").configured)
+
     def test_upstream_security_and_state_persistence(self):
         with self.assertRaises(ValueError):
             RestV1Bridge("http://192.168.76.1:1234")
