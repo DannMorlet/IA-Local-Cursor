@@ -88,3 +88,9 @@ export function modelLoadFeedback({provider="", inventoryFresh=false, models=[]}
 export function inventoryRequestIsCurrent(requestId, activeId, requestToken, activeToken) {
   return requestId === activeId && Boolean(requestToken) && requestToken === activeToken;
 }
+
+
+/** Solo la autenticación más reciente y no cancelada puede activar una sesión. */
+export function loginAttemptIsCurrent(requestId, activeId, requestToken, enteredToken) {
+  return requestId === activeId && Boolean(requestToken) && requestToken === enteredToken;
+}
