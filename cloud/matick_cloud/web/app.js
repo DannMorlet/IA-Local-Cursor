@@ -1,16 +1,16 @@
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent} from "./chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
-const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0, inventoryRequestId:0 };
+const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0, inventoryRequestId:0, loginRequestId:0 };
 function showMessage(message) {
   $("toast").textContent = String(message);
   $("toast").classList.remove("hidden");
   window.clearTimeout(showMessage.timer);
   showMessage.timer = setTimeout(()=>$("toast").classList.add("hidden"),5500);
 }
-async function api(path, body=undefined) {
-  if (!state.token) throw new Error("Conecta un token válido");
+async function api(path, body=undefined, authToken=state.token) {
+  if (!authToken) throw new Error("Conecta un token válido");
   const options = { method:body===undefined?"GET":"POST",
-    headers:{Authorization:"Bearer "+state.token, Accept:"application/json"} };
+    headers:{Authorization:"Bearer "+authToken, Accept:"application/json"} };
   if (body!==undefined) { options.headers["Content-Type"]="application/json"; options.body=JSON.stringify(body); }
   let response;
   try {response=await fetch(path,options);} catch {throw new Error("El servidor Matick no está disponible");}
@@ -42,11 +42,20 @@ $("connect-button").addEventListener("click",()=>{
   $("token-input").focus();
 });
 function closeLogin() {
+  // Cancelar invalida respuestas de autenticación pendientes.
+  state.loginRequestId++;
+  $("login-submit").disabled=false;
   $("login-dialog").classList.add("hidden");
   $("token-input").value="";
   $("login-error").textContent="";
 }
 $("cancel-login").addEventListener("click", closeLogin);
+$("token-input").addEventListener("input",()=>{
+  // Editar el token también invalida la solicitud anterior.
+  state.loginRequestId++;
+  $("login-submit").disabled=false;
+  $("login-error").textContent="";
+});
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape" && !$("login-dialog").classList.contains("hidden"))
     closeLogin();
@@ -55,16 +64,27 @@ $("login-form").addEventListener("submit", async e=>{
   e.preventDefault();
   const token=$("token-input").value.trim();
   if(token.length<16){$("login-error").textContent="Token demasiado corto";return;}
-  state.token=token;
+  const requestId=++state.loginRequestId;
+  $("login-submit").disabled=true;
+  $("login-error").textContent="Verificando acceso…";
   try {
-    const capabilities=await api("/v1/capabilities");
+    // No sustituir la sesión vigente hasta comprobar las credenciales nuevas.
+    const capabilities=await api("/v1/capabilities",undefined,token);
+    if(!loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim()))return;
+    state.token=token;
     closeLogin();
     $("status").textContent="API autenticada";
     $("connected-dot").classList.add("connected");
     $("state-api").textContent="Conectado";
     $("state-engine").textContent=capabilities.rest_v1?.configured?"REST v1 configurado":"No configurado";
     await Promise.all([refreshModels(),refreshTasks()]);
-  } catch(err) {state.token="";$("login-error").textContent=err.message;}
+  } catch(err) {
+    if(loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim()))
+      $("login-error").textContent=err.message;
+  } finally {
+    if(loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim()))
+      $("login-submit").disabled=false;
+  }
 });
 function empty(element,message) {element.replaceChildren();const p=document.createElement("div");p.className="empty";p.textContent=message;element.append(p);}
 async function refreshModels(){
