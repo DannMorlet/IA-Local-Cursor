@@ -225,6 +225,8 @@ class MatickHandler(BaseHTTPRequestHandler):
             try:
                 status = self.server.rest.download_status(job_id)
                 self._respond(HTTPStatus.OK, {"download": status})
+            except ModelOffline as exc:
+                self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
             except (ValueError, ModelError) as exc:
                 self._respond(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
@@ -251,6 +253,9 @@ class MatickHandler(BaseHTTPRequestHandler):
                 return
             try:
                 models = self.server.rest.models()
+            except ModelOffline as exc:
+                self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
+                return
             except (ModelError, ValueError) as exc:
                 self._respond(HTTPStatus.BAD_GATEWAY, {"error": str(exc)})
                 return
@@ -334,6 +339,8 @@ class MatickHandler(BaseHTTPRequestHandler):
                     self._respond(HTTPStatus.ACCEPTED, {"download": result})
             except PermissionError as exc:
                 self._respond(HTTPStatus.FORBIDDEN, {"error": str(exc)})
+            except ModelOffline as exc:
+                self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
             except (ValueError, ModelError) as exc:
                 self._respond(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return

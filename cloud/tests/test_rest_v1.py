@@ -10,7 +10,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from unittest.mock import patch
 
-from matick_cloud.models import RestV1Bridge, ModelState, valid_params, PARAMS, LOAD_PARAMS
+from matick_cloud.models import RestV1Bridge, ModelState, ModelOffline, valid_params, PARAMS, LOAD_PARAMS
 from matick_cloud.server import EventStore, MatickHTTPServer
 
 
@@ -231,6 +231,31 @@ class RestTests(unittest.TestCase):
              "generation": {"max_output_tokens": 128}})
         reloaded = ModelState(Path(self.temp.name) / "db.sqlite")
         self.assertEqual(reloaded.get()["model"], "qwen/qwen-demo")
+
+
+    def test_rest_v1_offline_model_controls_are_503_and_recover(self):
+        """Unreachable REST v1 is 503 (retryable), never a 400 client error."""
+        cases = (
+            ("/v1/models", None),
+            ("/v1/models/load", {"model": "google/gemma-demo"}),
+            ("/v1/models/unload", {"instance_id": "instance-1"}),
+            ("/v1/models/download", {"model": "google/gemma-demo"}),
+            ("/v1/models/download/status?job_id=job_1", None),
+        )
+        with patch.dict(os.environ, {"MATICK_ALLOW_MODEL_DOWNLOADS": "1"}):
+            with patch.object(self.bridge, "request", side_effect=ModelOffline("REST v1 sin conexión")):
+                for path, payload in cases:
+                    with self.subTest(path=path):
+                        with self.assertRaises(HTTPError) as error:
+                            self.call(path, payload)
+                        self.assertEqual(error.exception.code, 503)
+                        self.assertIn("error", json.load(error.exception))
+        # Failure must not persist a selected model or break the next request.
+        self.assertIsNone(self.call("/v1/models/settings")["model"])
+        self.assertEqual(len(self.call("/v1/models")["models"]), 2)
+        self.assertEqual(self.call("/v1/models/load", {
+            "model": "google/gemma-demo"
+        })["loaded"]["status"], "loaded")
 
 
 if __name__ == "__main__":
