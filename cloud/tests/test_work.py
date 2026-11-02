@@ -98,10 +98,12 @@ class WorkTests(unittest.TestCase):
             if button.get("data-go") or button.get("data-view"):
                 name = button.get("data-go") or button.get("data-view")
                 self.assertIn('id="view-' + name + '"', markup)
+            elif button.get("type") == "submit":
+                self.assertIn('addEventListener("submit"', source)
             elif button.get("id"):
                 self.assertIn('$("' + button["id"] + '").addEventListener', source)
             else:
-                self.assertEqual(button.get("type"), "submit")
+                self.fail("Botón sin acción explícita: " + str(button))
         self.assertIn('id="cancel-login"', markup)
         self.assertIn('data-focus="task-board"', markup)
         self.assertIn('id="home-send"', markup)
