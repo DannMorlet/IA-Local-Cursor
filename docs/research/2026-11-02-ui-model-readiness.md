@@ -49,3 +49,25 @@ Se intentó abrir https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8
 - [Unsloth, repositorio oficial](https://github.com/unslothai/unsloth): distingue paquete central Apache-2.0 de componentes opcionales de UI AGPL-3.0. **Decisión:** mantener consulta documental exclusivamente; no copiar código, diseño ni recursos.
 
 **Diferencia concreta respecto al informe anterior:** se resolvió una afirmación engañosa sobre carga de modelos con pruebas automáticas; no se incorporaron dependencias, motores externos ni técnicas de entrenamiento. La retención de calidad >=90% sigue SIN PROBAR. El chat compartido continúa inaccesible en esta revisión; no se atribuyen requisitos a su contenido.
+
+
+## Ejecución incremental: inventarios concurrentes y destilación documentada (2026-11-02)
+
+### Error de interfaz corregido en esta ejecución
+
+- **Condición reproducible en el código:** dos llamadas solapadas a `refreshModels()` podían resolverse fuera de orden. La respuesta más antigua sobrescribía el catálogo reciente, la selección y `inventoryFresh`; un error tardío también podía invalidar el catálogo recién cargado.
+- **Corrección implementada:** contador monotónico `inventoryRequestId` y comparación del token de la sesión. Solo la consulta más reciente de la sesión actual puede cambiar inventario, selección, indicadores o mensajes de error. No se añadió dependencia.
+- **Pruebas:** dos tests Node para respuesta/error obsoleto y cambio de sesión; guardia de integración estática Python. La prueba unitaria del guardia no sustituye una prueba visual real con latencia de red artificial.
+- **Reversión:** revertir los commits de esta sección del PR #46. No cambia el contrato REST v1, la base SQLite, el instalador ni archivos locales del usuario.
+
+### Investigación técnica nueva frente a la revisión anterior
+
+- [TRL DistillationTrainer (oficial)](https://huggingface.co/docs/trl/distillation_trainer): además de `SFTTrainer`, TRL documenta **destilación on-policy maestro/estudiante** con divergencia Jensen-Shannon calculada por fragmentos para reducir memoria de activaciones. Requiere compatibilidad de vocabulario entre maestro y estudiante; permite `peft_config` opcional. **Novedad frente al informe previo:** investigar una prueba aislada de `DistillationTrainer`, sin incorporarlo al núcleo ni ejecutarlo en CI ligero.
+- [TRL AsyncDistillationTrainer](https://huggingface.co/docs/trl/distillation_trainer): la documentación enlaza una variante con maestro servido por HTTP; podría evitar cargar maestro y estudiante simultáneamente en la RTX 5060 de 8 GB, pero **su viabilidad y latencia aún no están medidas**. No habilitar acceso remoto, credenciales ni costes por defecto.
+- [PEFT LoRA (oficial)](https://huggingface.co/docs/peft/main/package_reference/lora): `merge_and_unload()` fusiona pesos de adaptadores con el modelo base; **no reduce la arquitectura ni el número de parámetros**. Sin cambio de decisión respecto al informe previo.
+- [llama.cpp (oficial)](https://github.com/ggml-org/llama.cpp): motor C/C++ con formato GGUF y licencia MIT. Mantener como referencia para una integración externa opcional y atribuida; **no** afirmar motor propio ni copiar código.
+- [Unsloth (oficial)](https://github.com/unslothai/unsloth): mantiene distinción de licencias Apache-2.0/AGPL-3.0 por componentes. Solo consulta comparativa, sin copiar UI, assets o código.
+- [Microsoft Direct3D 12 (oficial)](https://learn.microsoft.com/en-us/windows/win32/direct3d12/directx-12-programming-guide): sincronización y residencia GPU requieren comprobación en dispositivo; mantener GDI de respaldo. No se cambia la ruta de renderizado.
+- [PyTorch torch.compile (oficial)](https://docs.pytorch.org/docs/stable/generated/torch.compile.html): evitar costes de compilación/recompilación en arranque de la UI; no incorporarlo al núcleo sin mediciones.
+
+**Criterios pendientes:** probar todos los botones, foco y accesibilidad en navegador/Windows reales; confirmar carga de pesos y tokens/s; medir VRAM; aprobar destilación solo con conjunto de evaluación reproducible y razón estudiante/maestro >=0.90. El chat compartido devolvió HTML sin contenido legible en esta ejecución: no se atribuyen requisitos nuevos.
