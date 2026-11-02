@@ -71,3 +71,27 @@ Se intentó abrir https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8
 - [PyTorch torch.compile (oficial)](https://docs.pytorch.org/docs/stable/generated/torch.compile.html): evitar costes de compilación/recompilación en arranque de la UI; no incorporarlo al núcleo sin mediciones.
 
 **Criterios pendientes:** probar todos los botones, foco y accesibilidad en navegador/Windows reales; confirmar carga de pesos y tokens/s; medir VRAM; aprobar destilación solo con conjunto de evaluación reproducible y razón estudiante/maestro >=0.90. El chat compartido devolvió HTML sin contenido legible en esta ejecución: no se atribuyen requisitos nuevos.
+
+
+## Ejecución incremental: autenticación cancelada y sesiones existentes (2026-11-02)
+
+### Bug funcional de interfaz
+
+- **Hallazgo en código:** el formulario asignaba el token de la sesión *antes* de validar /v1/capabilities. Cancelar el modal durante una petición lenta no impedía que una respuesta tardía autenticara la sesión; un intento fallido borraba además un token válido previo y dejaba el indicador «Conectado» desincronizado.
+- **Cambio real:** /v1/capabilities recibe el token candidato sin reemplazar la sesión activa. El botón **Entrar** se deshabilita durante la comprobación; **Cancelar/Esc** y editar el token invalidan el intento mediante un identificador monotónico. Solo el último intento vigente puede activar sesión. Los fallos conservan la sesión previamente autenticada.
+- **Pruebas agregadas:** Node comprueba intentos cancelados/editados y rechazo de resultados tardíos; Python inspecciona la conexión entre formulario, token candidato y guardia. Estas pruebas **no son** un smoke test visual con navegador real; el caso de carrera completo debe repetirse con red lenta en un navegador.
+- **Reversión:** revertir los commits de esta sección del PR #46. Sin cambios a REST v1, SQLite, instalador, DX12/GDI ni a rutas locales del usuario.
+
+### Comparación técnica con la revisión previa y fuentes oficiales
+
+| Fuente | Diferencia comprobada frente a revisión anterior | Decisión y límite |
+| --- | --- | --- |
+| [TRL GOLD Trainer](https://huggingface.co/docs/trl/gold_trainer) | **Nueva opción identificada:** destilación entre maestro y estudiante con tokenizadores diferentes mediante alineación de fragmentos de texto. La API está en el módulo experimental. | Evaluar solo en entorno opcional, con tests de alineación, memoria y licencia; no integrarlo en el núcleo ni prometer 90% de calidad. |
+| [TRL DistillationTrainer](https://huggingface.co/docs/trl/distillation_trainer) | Se confirma la alternativa on-policy y el maestro remoto/asíncrono documentados previamente; no constituye un benchmark. | Mantener investigación, sin entrenar en CI ligero ni enviar datos fuera del equipo sin consentimiento. |
+| [PEFT Quantization](https://huggingface.co/docs/peft/developer_guides/quantization) | QLoRA combina pesos cuantizados con adaptadores entrenables. | Reducir memoria de ajuste no equivale a disminuir número de parámetros; exigir estudiante menor y benchmark reproducible. |
+| [Unsloth](https://github.com/unslothai/unsloth) | Distinción Apache-2.0 para núcleo y AGPL-3.0 para ciertas partes de UI. | Solo referencia documental; no se copió código ni recursos. |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | Referencia MIT y GGUF para inferencia externa opcional. | No presentar como motor original de Matick ni añadirlo como dependencia obligatoria. |
+| [PyTorch torch.compile](https://docs.pytorch.org/docs/stable/generated/torch.compile.html) | Sin cambio respecto a costes de compilación y arranque. | Medir arranque en frío antes de habilitarlo; no se incorporó. |
+| [Microsoft Direct3D 12](https://learn.microsoft.com/en-us/windows/win32/direct3d12/directx-12-programming-guide) | Documenta validación GPU, residencia y DRED; no demuestra ejecución en RTX 5060. | Conservar DX12 y fallback GDI, pendientes pruebas físicas. |
+
+El chat compartido https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8 volvió a devolver error de acceso; no se infirieron requisitos nuevos. **Pendientes:** pruebas visuales de todos los botones y foco/teclado, reconexión con red lenta, inferencia real con pesos, VRAM/tokens/s y benchmark de retención >=90%.
