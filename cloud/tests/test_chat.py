@@ -322,5 +322,53 @@ class ChatContractTests(unittest.TestCase):
 
 
 
+    def test_openai_provider_drops_unsafe_token_counters(self):
+        """Counters beyond JS safe integer precision must never reach the chat UI."""
+        replies = [
+            {"prompt_tokens": 2 ** 53, "completion_tokens": 5},
+            {"prompt_tokens": 17, "completion_tokens": 2 ** 53 - 1},
+            {"prompt_tokens": True, "completion_tokens": -1},
+        ]
+
+        class UsageHandler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers["Content-Length"]))
+                body = json.dumps({
+                    "choices": [{"message": {"content": "texto de prueba"}}],
+                    "usage": replies.pop(0),
+                }).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        fake = ThreadingHTTPServer(("127.0.0.1", 0), UsageHandler)
+        worker = threading.Thread(target=fake.serve_forever, daemon=True)
+        worker.start()
+        try:
+            provider = OpenAICompatibleProvider(
+                "http://127.0.0.1:%d/v1" % fake.server_port, "demo"
+            )
+            stats = provider.respond([{"role": "user", "content": "hola"}])["stats"]
+            self.assertNotIn("input_tokens", stats)
+            self.assertEqual(stats["total_output_tokens"], 5)
+            stats = provider.respond([{"role": "user", "content": "hola"}])["stats"]
+            self.assertEqual(stats["input_tokens"], 17)
+            self.assertEqual(stats["total_output_tokens"], 2 ** 53 - 1)
+            stats = provider.respond([{"role": "user", "content": "hola"}])["stats"]
+            self.assertNotIn("input_tokens", stats)
+            self.assertNotIn("total_output_tokens", stats)
+            self.assertEqual(replies, [])
+        finally:
+            fake.shutdown()
+            fake.server_close()
+            worker.join(timeout=3)
+
+
+
 if __name__ == "__main__":
     unittest.main()
