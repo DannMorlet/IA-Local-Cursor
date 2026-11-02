@@ -95,3 +95,22 @@ Se intentó abrir https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8
 | [Microsoft Direct3D 12](https://learn.microsoft.com/en-us/windows/win32/direct3d12/directx-12-programming-guide) | Documenta validación GPU, residencia y DRED; no demuestra ejecución en RTX 5060. | Conservar DX12 y fallback GDI, pendientes pruebas físicas. |
 
 El chat compartido https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8 volvió a devolver error de acceso; no se infirieron requisitos nuevos. **Pendientes:** pruebas visuales de todos los botones y foco/teclado, reconexión con red lenta, inferencia real con pesos, VRAM/tokens/s y benchmark de retención >=90%.
+
+
+## Ejecución incremental: limpiar conversación durante generación (2026-11-02)
+
+### Bug funcional y corrección
+- **Antes:** al pulsar «Nueva conversación» mientras `POST /v1/chat` estaba pendiente, el chat se vaciaba, pero «Enviar» y el envío desde la portada permanecían deshabilitados hasta finalizar la solicitud anterior. Si esa solicitud tardaba, la conversación nueva parecía bloqueada. El mismo problema podía ocurrir al cambiar de modelo.
+- **Después:** limpiar la conversación, cambiar de modelo o perder la selección restablece inmediatamente ambos controles de envío. La cláusula `finally` solo puede habilitarlos si pertenece al `chatEpoch` vigente; así, una respuesta antigua no desbloquea un envío posterior. Las respuestas antiguas ya se descartaban mediante el mismo contador.
+- **Pruebas añadidas:** dos casos Node con promesas/control de orden que comprueban reinicio y respuesta tardía, más aserciones de integración estática Python. **No equivalen a pruebas de clics reales ni prueban cancelación de red**: el HTTP anterior puede continuar en el servidor.
+- **Reversión:** revertir commits de este cambio; no cambia endpoints, instalador, Windows DX12/GDI, base de datos ni dependencias. No se accedió a `C:\\IA\\Matick Studio LM`.
+
+### Comparación técnica con el informe previo (fuentes oficiales)
+- [PyTorch: reducir tiempo de compilación](https://docs.pytorch.org/docs/2.15/user_guide/torch_compiler/compile/programming_model.reducing_compile_time.html): el arranque en frío de `torch.compile` puede costar segundos o minutos y las recompilaciones lo empeoran. **Decisión nueva:** mantener compilación JIT fuera del arranque obligatorio de la interfaz blanca; medir por separado cold start y latencia sostenida antes de activarla.
+- [TRL: DistillationTrainer](https://huggingface.co/docs/trl/main/distillation_trainer): admite maestro externo y entrenamiento opcional del estudiante con PEFT, pero la documentación de `main` requiere versión de origen y las interfaces pueden evolucionar. **Decisión:** aislar cualquier prototipo en entorno opcional, fijar versiones y no prometer ejecución simultánea en 8 GB.
+- [PEFT: fusión LoRA](https://huggingface.co/docs/peft/main/package_reference/lora): `merge_and_unload` fusiona adaptadores, sin reducir automáticamente parámetros base. **Sin cambio** respecto al informe anterior; la meta de calidad >=90% requiere benchmarks independientes.
+- [llama.cpp](https://github.com/ggml-org/llama.cpp): GGUF y backends Windows son referencia de interoperabilidad, no evidencia de un motor original de Matick. **Sin incorporación** ni redistribución.
+- [Unsloth](https://github.com/unslothai/unsloth): licencias Apache-2.0 y AGPL-3.0 según componente. **Solo referencia documental**, sin copiar código ni assets.
+- [Microsoft DRED](https://learn.microsoft.com/windows/win32/direct3d12/use-dred): breadcrumbs y reportes de fallos GPU pueden mejorar logs DX12. **Candidato futuro** tras resolver botones y carga de modelos; no implementado aquí.
+
+**Diferencia comprobable:** se corrigió un bloqueo de los botones del chat al reiniciar la conversación, no una capacidad de inferencia ni destilación. La referencia https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8 volvió a fallar al abrirse; no se extrajeron requisitos. PC real RTX 5060, smoke visual, pesos cargados, MCP en hardware y calidad retenida >=90% siguen **SIN PROBAR**.
