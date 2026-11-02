@@ -189,6 +189,8 @@ class RestTests(unittest.TestCase):
         cases = (
             ({"tokens_per_second": float("nan"), "input_tokens": True,
               "total_output_tokens": -3, "extra": float("inf")}, {}),
+            ({"tokens_per_second": 10 ** 400, "input_tokens": 10 ** 400,
+              "total_output_tokens": 10 ** 400}, {}),
             ({"tokens_per_second": 42.5, "input_tokens": 3,
               "total_output_tokens": 4, "extra": {"untrusted": "value"}},
              {"tokens_per_second": 42.5, "input_tokens": 3,
