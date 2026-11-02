@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent} from "../matick_cloud/web/chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent} from "../matick_cloud/web/chat_payload.mjs";
 
 test("el proveedor alternativo aparece sin fingir inferencia verificada", () => {
   const inventory = {provider: "openai-compatible", configured: true, connected: false,
@@ -155,4 +155,26 @@ test("inventario: un token anterior no puede reactivar modelos de otra sesión",
   assert.equal(inventoryRequestIsCurrent(5, 5, "token-anterior", "token-nuevo"), false);
   assert.equal(inventoryRequestIsCurrent(5, 5, "", ""), false);
   assert.equal(inventoryRequestIsCurrent(5, 5, "token-nuevo", "token-nuevo"), true);
+});
+
+
+test("autenticación: cancelar o editar el token invalida la respuesta tardía", () => {
+  assert.equal(loginAttemptIsCurrent(7, 7, "token-vigente", "token-vigente"), true);
+  assert.equal(loginAttemptIsCurrent(7, 8, "token-vigente", "token-vigente"), false);
+  assert.equal(loginAttemptIsCurrent(7, 7, "token-anterior", "token-nuevo"), false);
+  assert.equal(loginAttemptIsCurrent(7, 7, "", ""), false);
+});
+
+test("autenticación: el resultado antiguo no sustituye la sesión nueva", async () => {
+  let attempt = 1;
+  const activeSession = {token:"token-ya-validado"};
+  let complete;
+  const pending = new Promise(resolve => {complete=resolve;});
+  // El usuario cancela la autenticación mientras el servidor responde.
+  attempt++;
+  complete({rest_v1:{configured:true}});
+  await pending;
+  if(loginAttemptIsCurrent(1,attempt,"token-pendiente","token-pendiente"))
+    activeSession.token="token-pendiente";
+  assert.equal(activeSession.token,"token-ya-validado");
 });
