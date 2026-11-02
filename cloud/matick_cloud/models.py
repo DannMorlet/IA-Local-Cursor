@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import sqlite3
 import threading
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -204,7 +205,9 @@ class RestV1Bridge:
         }
         if previous_response_id:
             payload["previous_response_id"] = previous_response_id
+        started = time.perf_counter()
         result = self.request("/api/v1/chat", payload)
+        http_roundtrip_ms = round((time.perf_counter() - started) * 1000, 1)
         # A remote provider can return valid JSON with an invalid shape.
         # Convert those responses to a controlled 502 instead of crashing
         # the request thread with AttributeError/TypeError (HTTP disconnect).
@@ -218,10 +221,13 @@ class RestV1Bridge:
         ]
         if not texts:
             raise ModelError("El modelo no devolvió texto de respuesta")
-        stats = result.get("stats")
+        upstream_stats = result.get("stats")
+        stats = dict(upstream_stats) if isinstance(upstream_stats, dict) else {}
+        # Campo local y verificable; nunca reemplaza tokens_per_second del motor.
+        stats["http_roundtrip_ms"] = http_roundtrip_ms
         instance = result.get("model_instance_id")
         response = {"model": model, "content": "\n".join(texts)[:12000],
-                    "stats": stats if isinstance(stats, dict) else {},
+                    "stats": stats,
                     "model_instance_id": instance if isinstance(instance, str) else None}
         identifier = result.get("response_id")
         if stateful and isinstance(identifier, str) and re.fullmatch(
