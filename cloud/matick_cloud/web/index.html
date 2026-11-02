@@ -54,12 +54,12 @@
             </div>
             <div class="compose-send">
               <span id="home-model-chip" class="model-indicator">Sin modelo seleccionado</span>
-              <button type="submit" class="send-circle" aria-label="Enviar a Matick" title="Enviar a Matick">↑</button>
+              <button type="submit" id="home-send" class="send-circle" aria-label="Enviar a Matick" title="Enviar a Matick">↑</button>
             </div>
           </div>
         </form>
         <div class="home-actions" aria-label="Funciones de Matick">
-          <button class="home-action" type="button" data-go="workspace">▣ <span>Proyectos y tareas</span></button>
+          <button class="home-action" type="button" data-go="workspace" data-focus="task-board">▣ <span>Proyectos y tareas</span></button>
           <button class="home-action" type="button" data-go="models">◈ <span>Seleccionar modelo</span></button>
           <button class="home-action" type="button" data-go="tools">⚙ <span>Conectores MCP</span></button>
         </div>
@@ -126,6 +126,6 @@
   </aside>
 
 </div>
-<div id="login-dialog" class="modal hidden"><form id="login-form" class="login-card"><div class="eyebrow">MATICK STUDIO LM · V1</div><h2>Conecta tu espacio</h2><p>Introduce el token del rol <code>windows-dx12</code> o <code>matick-studio-lm</code>. No se guarda en el navegador ni en GitHub.</p><label class="field">Token del servidor <input id="token-input" type="password" autocomplete="off" minlength="16" required></label><button class="primary block" type="submit">Entrar al espacio ↗</button><small id="login-error" role="status"></small></form></div>
+<div id="login-dialog" class="modal hidden" role="dialog" aria-modal="true" aria-label="Conectar a Matick"><form id="login-form" class="login-card"><div class="eyebrow">MATICK STUDIO LM · V1</div><h2>Conecta tu espacio</h2><p>Introduce el token del rol <code>windows-dx12</code> o <code>matick-studio-lm</code>. No se guarda en el navegador ni en GitHub.</p><label class="field">Token del servidor <input id="token-input" type="password" autocomplete="off" minlength="16" required></label><button class="primary block" type="submit">Entrar al espacio ↗</button><button id="cancel-login" class="ghost block" type="button">Cancelar</button><small id="login-error" role="status"></small></form></div>
 <div id="toast" role="status" class="toast hidden"></div>
 <script type="module" src="/app/app.js"></script></body></html>

@@ -1,6 +1,6 @@
 import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
-const state = { token:"", models:[], selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0 };
+const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0 };
 function showMessage(message) {
   $("toast").textContent = String(message);
   $("toast").classList.remove("hidden");
@@ -32,8 +32,25 @@ function view(name) {
   $("view-name").textContent={workspace:"Trabajo",chat:"Chat",models:"Modelos IA",tools:"Herramientas MCP"}[name];
 }
 document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>view(button.dataset.view)));
-document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("click",()=>view(button.dataset.go)));
-$("connect-button").addEventListener("click",()=>{$("login-dialog").classList.remove("hidden");$("token-input").focus();});
+document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("click",()=>{
+  view(button.dataset.go);
+  if(button.dataset.focus==="task-board")
+    $("task-board").scrollIntoView({behavior:"smooth",block:"center"});
+}));
+$("connect-button").addEventListener("click",()=>{
+  $("login-dialog").classList.remove("hidden");
+  $("token-input").focus();
+});
+function closeLogin() {
+  $("login-dialog").classList.add("hidden");
+  $("token-input").value="";
+  $("login-error").textContent="";
+}
+$("cancel-login").addEventListener("click", closeLogin);
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape" && !$("login-dialog").classList.contains("hidden"))
+    closeLogin();
+});
 $("login-form").addEventListener("submit", async e=>{
   e.preventDefault();
   const token=$("token-input").value.trim();
@@ -41,9 +58,7 @@ $("login-form").addEventListener("submit", async e=>{
   state.token=token;
   try {
     const capabilities=await api("/v1/capabilities");
-    $("login-dialog").classList.add("hidden");
-    $("token-input").value="";
-    $("login-error").textContent="";
+    closeLogin();
     $("status").textContent="API autenticada";
     $("connected-dot").classList.add("connected");
     $("state-api").textContent="Conectado";
@@ -56,13 +71,45 @@ async function refreshModels(){
   try {
     const [inventory,settings]=await Promise.all([api("/v1/models"),api("/v1/models/settings")]);
     state.models=Array.isArray(inventory.models)?inventory.models:[];
+    state.provider=inventory.provider||"";
+    state.inventoryFresh=true;
     const presentation=modelInventoryPresentation(inventory,settings);
     $("state-engine").textContent=presentation.engineStatus;
     $("model-count").textContent=state.models.length+" modelos";
-    if(presentation.selectedModel) selectModel(presentation.selectedModel,true);
+    if(presentation.selectedModel && state.models.some(m=>m.key===presentation.selectedModel))
+      selectModel(presentation.selectedModel,true);
+    else clearModelSelection();
     setSavedSettings(settings);
     renderModels();
-  }catch(err){empty($("model-list"),"No se pudo consultar modelos: "+err.message);}
+  }catch(err){
+    state.inventoryFresh=false;
+    $("state-engine").textContent="No se pudo verificar el motor";
+    empty($("model-list"),"No se pudo consultar modelos: "+err.message);
+  }
+}
+function clearModelSelection(){
+  if(state.selected) {
+    state.chatEpoch++;
+    state.chat=[];state.previousResponseId=null;state.conversationModel=null;
+    empty($("conversation"),"Modelo descargado o no disponible. Selecciona otro modelo.");
+  }
+  state.selected="";
+  state.loadedInstances=[];
+  $("model-id").value="";
+  $("model-current").textContent="Sin modelo";
+  $("state-model").textContent="Ninguno";
+  $("model-chip").textContent="Modelo sin seleccionar";
+  $("home-model-chip").textContent="Sin modelo seleccionado";
+}
+function selectedModelReadiness() {
+  if(!state.token) return {ok:false,reason:"Conecta tu servidor Matick antes de enviar."};
+  if(!state.inventoryFresh) return {ok:false,reason:"Actualiza el catálogo de modelos para comprobar su disponibilidad."};
+  if(!state.selected) return {ok:false,reason:"Selecciona un modelo en Modelos IA."};
+  const item=state.models.find(m=>m.key===state.selected);
+  if(!item) return {ok:false,reason:"El modelo elegido ya no aparece en el catálogo. Actualiza Modelos IA."};
+  if(state.provider==="rest-v1" && (!Array.isArray(item.loaded_instances)||!item.loaded_instances.length))
+    return {ok:false,reason:"Modelo elegido pero NO cargado en RAM/VRAM. En Modelos IA pulsa Cargar."};
+  return {ok:true};
 }
 function selectModel(id, fromSettings=false) {
   if(state.selected!==id){
@@ -75,9 +122,11 @@ function selectModel(id, fromSettings=false) {
   $("model-current").textContent=id;
   $("state-model").textContent=id;
   $("model-chip").textContent=id;
-  $("home-model-chip").textContent=id;
   const row=state.models.find(m=>m.key===id);
   state.loadedInstances=(row && Array.isArray(row.loaded_instances))?row.loaded_instances:[];
+  $("home-model-chip").textContent=state.provider==="rest-v1" ?
+    (state.loadedInstances.length?id+" · Cargado":id+" · Falta cargar") :
+    id+" · Inferencia por verificar";
   if(!fromSettings) renderModels();
 }
 function setSavedSettings(value){
@@ -178,10 +227,11 @@ $("home-form").addEventListener("submit", e=>{
   e.preventDefault();
   const prompt=$("home-prompt").value.trim();
   if(!prompt)return;
-  if(!state.token){
-    showMessage("Conecta tu servidor Matick para comenzar.");
-    $("login-dialog").classList.remove("hidden");
-    $("token-input").focus();
+  const readiness=selectedModelReadiness();
+  if(!readiness.ok) {
+    showMessage(readiness.reason);
+    if(!state.token) $("connect-button").click();
+    else view("models");
     return;
   }
   $("prompt").value=prompt;
@@ -200,8 +250,13 @@ $("home-new-task").addEventListener("click",createTask);
 $("chat-form").addEventListener("submit",async e=>{
   e.preventDefault();
   const prompt=$("prompt").value.trim();if(!prompt)return;
+  const readiness=selectedModelReadiness();
+  if(!readiness.ok) {showMessage(readiness.reason);return;}
+  if($("send-chat").disabled) return;
   $("prompt").value="";state.chat.push({role:"user",content:prompt});chatBubble("user",prompt);
   $("send-chat").disabled=true;
+  $("home-send").disabled=true;
+  $("chat-stats").textContent="Generando respuesta del modelo…";
   const requestEpoch=state.chatEpoch;
   try {
     const stateful=$("stateful-chat").checked;
@@ -234,7 +289,7 @@ $("chat-form").addEventListener("submit",async e=>{
       chatBubble("assistant","No se generó una respuesta: "+err.message);
     });
   }
-  finally{$("send-chat").disabled=false;}
+  finally{$("send-chat").disabled=false;$("home-send").disabled=false;}
 });
 $("prompt").addEventListener("keydown",e=>{if(e.key==="Enter" && e.ctrlKey){e.preventDefault();$("chat-form").requestSubmit();}});
 $("clear-chat").addEventListener("click",()=>{
@@ -250,6 +305,8 @@ async function refreshTasks(){
     if(!state.tasks.length)empty(board,"No hay trabajos todavía. Crea uno para empezar.");
     for(const task of state.tasks){
       const card=document.createElement("div");card.className="task-card";
+      card.id="task-card-"+task.id;
+      card.tabIndex=-1;
       const title=document.createElement("strong");title.textContent=task.title;
       const detail=document.createElement("small");detail.textContent=task.detail||"Sin descripción";
       const select=document.createElement("select");
@@ -262,14 +319,21 @@ async function refreshTasks(){
         catch(err){showMessage(err.message);await refreshTasks();}
       });
       card.append(title,detail,select);board.append(card);
-      const link=document.createElement("button");link.textContent=task.title;link.addEventListener("click",()=>view("workspace"));side.append(link);
+      const link=document.createElement("button");
+      link.textContent=task.title;
+      link.addEventListener("click",()=>{
+        view("workspace");
+        card.scrollIntoView({behavior:"smooth",block:"center"});
+        card.focus({preventScroll:true});
+      });
+      side.append(link);
     }
   }catch(err){showMessage("Tareas: "+err.message);}
 }
 async function createTask(){
   if(!state.token){$("login-dialog").classList.remove("hidden");return;}
-  const title=prompt("Nombre del nuevo trabajo:");if(!title)return;
-  const detail=prompt("Descripción breve (opcional):")||"";
+  const title=window.prompt("Nombre del nuevo trabajo:");if(!title)return;
+  const detail=window.prompt("Descripción breve (opcional):")||"";
   try{await api("/v1/tasks",{title,detail});await refreshTasks();view("workspace");}
   catch(err){showMessage(err.message);}
 }
