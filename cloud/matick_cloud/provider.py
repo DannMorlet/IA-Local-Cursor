@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -90,9 +91,11 @@ class OpenAICompatibleProvider:
         if self.api_key:
             headers["Authorization"] = "Bearer " + self.api_key
         req = Request(url, data=payload, headers=headers, method="POST")
+        started = time.perf_counter()
         try:
             with self.opener.open(req, timeout=25) as response:
                 raw = response.read(128 * 1024 + 1)
+            http_roundtrip_ms = round((time.perf_counter() - started) * 1000, 1)
         except (HTTPError, URLError, TimeoutError, OSError) as exc:
             # No divulgar URL, tokens ni cuerpo de error de proveedores externos.
             raise ProviderUnavailable("No fue posible consultar el proveedor de IA configurado") from exc
@@ -106,9 +109,19 @@ class OpenAICompatibleProvider:
         if not isinstance(content, str) or not content.strip():
             # HTTP 200 con contenido vacío no es una inferencia completada.
             raise ProviderResponseError("Respuesta del proveedor sin texto")
+        # El tiempo incluye transporte HTTP, no es velocidad de decodificación.
+        stats = {"http_roundtrip_ms": http_roundtrip_ms}
+        usage = result.get("usage") if isinstance(result, dict) else None
+        if isinstance(usage, dict):
+            for source, target in (("prompt_tokens", "input_tokens"),
+                                   ("completion_tokens", "total_output_tokens")):
+                count = usage.get(source)
+                if type(count) is int and count >= 0:
+                    stats[target] = count
         return {
             "model": self.model,
             "content": content[:12000],
+            "stats": stats,
             "parameters_forwarded": sorted(forwarded),
             "parameters_not_forwarded": not_forwarded,
         }

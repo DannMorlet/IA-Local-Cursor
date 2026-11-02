@@ -109,6 +109,8 @@ class RestTests(unittest.TestCase):
         self.assertEqual(RestMock.requests[-1][1]["context_length"], 4096)
         chat = self.call("/v1/chat", {"messages": [{"role": "user", "content": "hola"}]})
         self.assertIn("Respuesta v1:", chat["content"])
+        self.assertGreaterEqual(chat["stats"]["http_roundtrip_ms"], 0)
+        self.assertEqual(chat["stats"]["tokens_per_second"], 42)
         self.assertEqual(RestMock.requests[-1][1]["temperature"], 0.4)
         unloaded = self.call("/v1/models/unload", {"instance_id": "google/gemma-demo",
                                                     "model": "google/gemma-demo"})
@@ -176,7 +178,8 @@ class RestTests(unittest.TestCase):
                 "messages": [{"role": "user", "content": "hola"}]
             })
         self.assertEqual(result["content"], "OK")
-        self.assertEqual(result["stats"], {})
+        self.assertEqual(set(result["stats"]), {"http_roundtrip_ms"})
+        self.assertGreaterEqual(result["stats"]["http_roundtrip_ms"], 0)
         self.assertIsNone(result["model_instance_id"])
 
     def test_permissions_and_invalid_parameters(self):

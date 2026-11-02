@@ -221,6 +221,8 @@ $("chat-form").addEventListener("submit",async e=>{
       const details=[];
       if(Number.isFinite(stats.tokens_per_second))
         details.push(Number(stats.tokens_per_second).toFixed(1)+" tokens/s");
+      if(Number.isFinite(stats.http_roundtrip_ms) && stats.http_roundtrip_ms >= 0)
+        details.push(Number(stats.http_roundtrip_ms).toFixed(1)+" ms HTTP (incluye red)");
       if(Number.isFinite(stats.input_tokens)) details.push(stats.input_tokens+" tokens entrada");
       if(Number.isFinite(stats.total_output_tokens)) details.push(stats.total_output_tokens+" tokens salida");
       if(Array.isArray(response.parameters_not_forwarded) && response.parameters_not_forwarded.length)
