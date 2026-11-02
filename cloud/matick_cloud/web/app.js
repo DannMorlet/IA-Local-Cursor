@@ -1,4 +1,4 @@
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation} from "./chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
 const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0 };
 function showMessage(message) {
@@ -102,14 +102,7 @@ function clearModelSelection(){
   $("home-model-chip").textContent="Sin modelo seleccionado";
 }
 function selectedModelReadiness() {
-  if(!state.token) return {ok:false,reason:"Conecta tu servidor Matick antes de enviar."};
-  if(!state.inventoryFresh) return {ok:false,reason:"Actualiza el catálogo de modelos para comprobar su disponibilidad."};
-  if(!state.selected) return {ok:false,reason:"Selecciona un modelo en Modelos IA."};
-  const item=state.models.find(m=>m.key===state.selected);
-  if(!item) return {ok:false,reason:"El modelo elegido ya no aparece en el catálogo. Actualiza Modelos IA."};
-  if(state.provider==="rest-v1" && (!Array.isArray(item.loaded_instances)||!item.loaded_instances.length))
-    return {ok:false,reason:"Modelo elegido pero NO cargado en RAM/VRAM. En Modelos IA pulsa Cargar."};
-  return {ok:true};
+  return modelReadiness(state);
 }
 function selectModel(id, fromSettings=false) {
   if(state.selected!==id){
@@ -211,7 +204,7 @@ $("download-model").addEventListener("click",async()=>{
   if(!id){showMessage("Escribe el ID del modelo del catálogo");return;}
   if(!confirm("Esto puede descargar varios GB AL SERVIDOR de modelos. ¿Continuar?"))return;
   try {const result=await api("/v1/models/download",{model:id});
-    showMessage("Solicitud: "+(result.download?.status||"aceptada")+". Revisa el progreso en LM Studio.");}
+    showMessage("Solicitud: "+(result.download?.status||"aceptada")+". Consulta el progreso en el motor configurado.");}
   catch(err){showMessage(err.message);}
 });
 function chatBubble(role,text){
