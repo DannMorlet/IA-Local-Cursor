@@ -120,6 +120,11 @@ class WorkTests(unittest.TestCase):
         self.assertIn('loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim())', source)
         self.assertIn('state.loginRequestId++;', source)
         self.assertNotIn('catch(err) {state.token="";', source)
+        # La UI habilita un chat nuevo tras limpiar/cambiar de modelo y protege el finally tardío.
+        self.assertIn("function resetChatControls()", source)
+        self.assertIn("applyChatResultIfCurrent(requestEpoch,state.chatEpoch,resetChatControls)", source)
+        self.assertIn('resetChatControls(); // Nueva conversación usable', source)
+        self.assertIn('resetChatControls(); // El chat anterior ya no debe bloquear', source)
 
     def test_create_and_update_tasks(self):
         _, data = self.call("/v1/tasks")
