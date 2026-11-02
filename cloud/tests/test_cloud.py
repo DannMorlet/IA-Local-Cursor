@@ -44,6 +44,16 @@ class CloudTests(unittest.TestCase):
         with urlopen(req, timeout=3) as resp:
             return resp.status, json.load(resp)
 
+    def test_chat_module_is_served_by_local_web_app(self) -> None:
+        # ES modules must be served as JavaScript under the existing CSP.
+        with urlopen(self.base + "/app", timeout=3) as page:
+            html = page.read().decode("utf-8")
+        self.assertIn('type="module" src="/app/app.js"', html)
+        with urlopen(self.base + "/app/chat_payload.mjs", timeout=3) as module:
+            self.assertEqual(module.status, 200)
+            self.assertEqual(module.headers.get_content_type(), "text/javascript")
+            self.assertIn(b"buildChatPayload", module.read())
+
     def test_public_health_and_authenticated_status(self) -> None:
         status, health = self.call("/health")
         self.assertEqual(status, 200)
