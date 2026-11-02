@@ -1,6 +1,6 @@
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent} from "./chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent, resetForAuthenticatedSession} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
-const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0, inventoryRequestId:0, loginRequestId:0 };
+const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0, inventoryRequestId:0, taskRequestId:0, loginRequestId:0 };
 function resetChatControls() {
   $("send-chat").disabled=false;
   $("home-send").disabled=false;
@@ -75,8 +75,20 @@ $("login-form").addEventListener("submit", async e=>{
     // No sustituir la sesión vigente hasta comprobar las credenciales nuevas.
     const capabilities=await api("/v1/capabilities",undefined,token);
     if(!loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim()))return;
+    // A token distinto no puede heredar historial, modelos o respuestas de la sesión previa.
+    resetForAuthenticatedSession(state);
+    resetChatControls();
     state.token=token;
     closeLogin();
+    empty($("conversation"),"Sesión nueva. Selecciona un modelo para comenzar.");
+    $("chat-stats").textContent="Sesión nueva sin historial";
+    $("model-chip").textContent="Modelo sin seleccionar";
+    $("home-model-chip").textContent="Comprobando modelos de la nueva sesión…";
+    $("model-id").value="";
+    $("model-current").textContent="Sin modelo";
+    $("state-model").textContent="Ninguno";
+    empty($("task-board"),"Cargando trabajos de la nueva sesión…");
+    empty($("sidebar-tasks"),"Cargando trabajos…");
     $("status").textContent="API autenticada";
     $("connected-dot").classList.add("connected");
     $("state-api").textContent="Conectado";
@@ -338,8 +350,13 @@ $("clear-chat").addEventListener("click",()=>{
   empty($("conversation"),"Nueva conversación lista.");
 });
 async function refreshTasks(){
+  const requestId=++state.taskRequestId;
+  const requestToken=state.token;
   try {
-    const data=await api("/v1/tasks");state.tasks=data.tasks||[];
+    const data=await api("/v1/tasks");
+    // Una respuesta de tareas de otro token o refresco no debe mostrarse.
+    if(!inventoryRequestIsCurrent(requestId,state.taskRequestId,requestToken,state.token))return;
+    state.tasks=data.tasks||[];
     const board=$("task-board"),side=$("sidebar-tasks");board.replaceChildren();side.replaceChildren();
     if(!state.tasks.length)empty(board,"No hay trabajos todavía. Crea uno para empezar.");
     for(const task of state.tasks){
@@ -367,7 +384,10 @@ async function refreshTasks(){
       });
       side.append(link);
     }
-  }catch(err){showMessage("Tareas: "+err.message);}
+  }catch(err){
+    if(inventoryRequestIsCurrent(requestId,state.taskRequestId,requestToken,state.token))
+      showMessage("Tareas: "+err.message);
+  }
 }
 async function createTask(){
   if(!state.token){$("login-dialog").classList.remove("hidden");return;}
