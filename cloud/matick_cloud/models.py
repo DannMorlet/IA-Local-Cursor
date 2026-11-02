@@ -222,7 +222,17 @@ class RestV1Bridge:
         if not texts:
             raise ModelError("El modelo no devolvió texto de respuesta")
         upstream_stats = result.get("stats")
-        stats = dict(upstream_stats) if isinstance(upstream_stats, dict) else {}
+        stats = {}
+        if isinstance(upstream_stats, dict):
+            # Never expose arbitrary provider metadata or invalid JSON numbers.
+            # bool is an int subclass in Python, so require exact numeric types.
+            for key in ("input_tokens", "total_output_tokens"):
+                value = upstream_stats.get(key)
+                if type(value) is int and value >= 0:
+                    stats[key] = value
+            rate = upstream_stats.get("tokens_per_second")
+            if type(rate) in (int, float) and math.isfinite(rate) and rate >= 0:
+                stats["tokens_per_second"] = rate
         # Campo local y verificable; nunca reemplaza tokens_per_second del motor.
         stats["http_roundtrip_ms"] = http_roundtrip_ms
         instance = result.get("model_instance_id")
