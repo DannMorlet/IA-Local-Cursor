@@ -82,3 +82,9 @@ export function modelLoadFeedback({provider="", inventoryFresh=false, models=[]}
     "Instancia declarada cargada por REST v1; inferencia aún sin verificar." :
     "Carga solicitada; REST v1 todavía no confirma una instancia cargada.";
 }
+
+
+/** Evita que respuestas tardías del catálogo sustituyan un inventario más nuevo. */
+export function inventoryRequestIsCurrent(requestId, activeId, requestToken, activeToken) {
+  return requestId === activeId && Boolean(requestToken) && requestToken === activeToken;
+}
