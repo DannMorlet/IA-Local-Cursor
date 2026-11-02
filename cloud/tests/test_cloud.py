@@ -126,6 +126,31 @@ class CloudTests(unittest.TestCase):
         reopened = EventStore(self.db)
         self.assertEqual(reopened.inbox("matick-studio-lm", 0, 10)[0]["payload"]["n"], 3)
 
+    def test_nonfinite_json_event_is_rejected_without_persisting(self) -> None:
+        # Python's json.loads accepts NaN/Infinity by default, even though
+        # they are invalid JSON and poison consumers expecting RFC 8259.
+        for constant in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(constant=constant):
+                raw = ('{"target":"matick-chat","kind":"metrics",'
+                       '"payload":{"value":' + constant + '}}').encode("ascii")
+                req = Request(self.base + "/v1/events", data=raw, method="POST",
+                              headers={"Authorization": "Bearer " +
+                                       self.tokens["matick-studio-lm"],
+                                       "Content-Type": "application/json"})
+                with self.assertRaises(HTTPError) as rejected:
+                    urlopen(req, timeout=3)
+                self.assertEqual(rejected.exception.code, 400)
+                self.assertEqual(json.load(rejected.exception)["error"], "JSON inválido")
+        _, inbox = self.call("/v1/events?after=0", "matick-chat")
+        self.assertEqual(inbox["events"], [], "Invalid JSON must not reach SQLite")
+        # The same server must accept a subsequent valid event.
+        status, _ = self.call("/v1/events", "matick-studio-lm", {
+            "target": "matick-chat", "kind": "metrics", "payload": {"value": 3},
+        })
+        self.assertEqual(status, 201)
+        _, inbox = self.call("/v1/events?after=0", "matick-chat")
+        self.assertEqual(inbox["events"][0]["payload"], {"value": 3})
+
     def test_token_validation(self) -> None:
         with self.assertRaises(ValueError):
             load_tokens('{"matick-chat":"abc"}')
