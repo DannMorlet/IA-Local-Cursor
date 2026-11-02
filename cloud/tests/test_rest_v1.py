@@ -143,7 +143,8 @@ class RestTests(unittest.TestCase):
                 "stateful": True,
                 "messages": [{"role": "user", "content": "hola"}]
             })
-        self.assertEqual(invalid.exception.code, 502)
+        # Invalid previous_response_id is a client error, not an upstream fault.
+        self.assertEqual(invalid.exception.code, 400)
 
     def test_malformed_chat_upstream_returns_502_and_recovers(self):
         """Valid JSON with a broken REST v1 shape must never drop the HTTP connection."""
@@ -193,6 +194,26 @@ class RestTests(unittest.TestCase):
         self.assertEqual(len(RestMock.requests), 0)
         with self.assertRaises(HTTPError):
             self.call("/v1/models/download/status?job_id=not_a_job")
+
+    def test_invalid_chat_input_is_400_and_does_not_reach_inference(self):
+        """Invalid client arguments are 400, not an upstream 502."""
+        self.call("/v1/models/settings", {"model": "google/gemma-demo"})
+        prompt = {"messages": [{"role": "user", "content": "hola"}]}
+        invalid = (
+            {"stateful": "yes"},
+            {"stateful": True, "previous_response_id": "not-a-response-id"},
+            {"parameters": {"temperature": 4}},
+            {"model": "bad model id"},
+        )
+        for override in invalid:
+            with self.subTest(override=override):
+                with self.assertRaises(HTTPError) as error:
+                    self.call("/v1/chat", {**prompt, **override})
+                self.assertEqual(error.exception.code, 400)
+                self.assertIn("error", json.load(error.exception))
+        self.assertEqual(RestMock.requests, [], "Invalid chat reached the inference provider")
+        # A rejected request must not poison the next valid inference request.
+        self.assertIn("Respuesta v1:", self.call("/v1/chat", prompt)["content"])
 
     def test_upstream_security_and_state_persistence(self):
         with self.assertRaises(ValueError):
