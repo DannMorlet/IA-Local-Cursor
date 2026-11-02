@@ -57,3 +57,16 @@ export function applyChatResultIfCurrent(requestEpoch, currentEpoch, apply) {
   apply();
   return true;
 }
+
+/** Estado del modelo: cargado no significa que ya haya respondido por inferencia. */
+export function modelReadiness({token="", inventoryFresh=false, selected="",
+    provider="", models=[]}={}) {
+  if(!token) return {ok:false, reason:"Conecta tu servidor Matick antes de enviar."};
+  if(!inventoryFresh) return {ok:false, reason:"Actualiza el catálogo de modelos para comprobar su disponibilidad."};
+  if(!selected) return {ok:false, reason:"Selecciona un modelo en Modelos IA."};
+  const item=Array.isArray(models) ? models.find(m=>m?.key===selected) : null;
+  if(!item) return {ok:false, reason:"El modelo elegido ya no aparece en el catálogo. Actualiza Modelos IA."};
+  if(provider==="rest-v1" && (!Array.isArray(item.loaded_instances) || !item.loaded_instances.length))
+    return {ok:false, reason:"Modelo elegido pero NO cargado en RAM/VRAM. En Modelos IA pulsa Cargar."};
+  return {ok:true, verifiedInference:false};
+}
