@@ -124,6 +124,31 @@ class ChatContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 client_request("GET", "/v1/status")
 
+    def test_alternative_provider_is_visible_without_claiming_inference(self):
+        """Configured HTTP providers must be selectable, but not marked online."""
+        self.server.provider = OpenAICompatibleProvider(
+            "http://127.0.0.1:9/v1", "modelo-alternativo"
+        )
+        status, raw, _ = self.request("/v1/models")
+        self.assertEqual(status, 200)
+        inventory = json.loads(raw)
+        self.assertEqual(inventory["provider"], "openai-compatible")
+        self.assertTrue(inventory["configured"])
+        self.assertFalse(inventory["connected"], "No live inference was tested")
+        self.assertEqual(inventory["models"], [{
+            "key": "modelo-alternativo",
+            "name": "modelo-alternativo",
+            "type": "llm",
+            "loaded_instances": [],
+            "source": "openai-compatible",
+        }])
+        with self.assertRaises(HTTPError) as offline:
+            self.request("/v1/chat", {
+                "model": "modelo-alternativo",
+                "messages": [{"role": "user", "content": "Hola"}],
+            })
+        self.assertEqual(offline.exception.code, 503)
+
     def test_provider_url_policy(self):
         for rejected in ("http://10.0.0.1:1234/v1", "http://host.example/v1",
                          "ftp://localhost/v1", "https://user:pass@example.com/v1",
