@@ -149,6 +149,21 @@ class ChatContractTests(unittest.TestCase):
             })
         self.assertEqual(offline.exception.code, 503)
 
+    def test_provider_rejects_invalid_ports_during_configuration(self):
+        """Invalid provider ports must fail early, before the chat endpoint runs."""
+        for invalid in (
+            "http://127.0.0.1:invalid/v1",
+            "http://127.0.0.1:65536/v1",
+            "https://example.com:65536/v1",
+        ):
+            with self.subTest(url=invalid):
+                with self.assertRaisesRegex(ValueError, "MATICK_MODEL_BASE_URL"):
+                    OpenAICompatibleProvider(invalid, "modelo", "token-de-prueba")
+        # Valid loopback ports remain supported.
+        self.assertTrue(OpenAICompatibleProvider(
+            "http://127.0.0.1:1234/v1", "modelo"
+        ).configured)
+
     def test_provider_url_policy(self):
         for rejected in ("http://10.0.0.1:1234/v1", "http://host.example/v1",
                          "ftp://localhost/v1", "https://user:pass@example.com/v1",

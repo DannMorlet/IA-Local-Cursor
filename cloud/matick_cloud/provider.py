@@ -47,6 +47,13 @@ class OpenAICompatibleProvider:
                 or url.path not in ("", "/v1")
             ):
                 raise ValueError("MATICK_MODEL_BASE_URL debe terminar opcionalmente en /v1 y no tener credenciales")
+            # urlsplit() does not validate the port until .port is accessed.
+            # Reject malformed/out-of-range ports at configuration time, not
+            # during a chat request where they could become an HTTP 500.
+            try:
+                _ = url.port
+            except ValueError as exc:
+                raise ValueError("MATICK_MODEL_BASE_URL contiene un puerto inválido") from exc
             if url.scheme == "http" and url.hostname.lower() not in ("localhost", "127.0.0.1", "::1"):
                 raise ValueError("El proveedor remoto requiere HTTPS")
             if url.scheme == "https" and not self.api_key:
