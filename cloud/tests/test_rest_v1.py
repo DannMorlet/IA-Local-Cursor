@@ -11,7 +11,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from unittest.mock import patch
 
-from matick_cloud.models import RestV1Bridge, ModelState, ModelOffline, valid_params, PARAMS, LOAD_PARAMS
+from matick_cloud.models import RestV1Bridge, ModelState, ModelError, ModelOffline, valid_params, PARAMS, LOAD_PARAMS
 from matick_cloud.server import EventStore, MatickHTTPServer
 
 
@@ -257,6 +257,26 @@ class RestTests(unittest.TestCase):
         self.assertEqual(self.call("/v1/models/load", {
             "model": "google/gemma-demo"
         })["loaded"]["status"], "loaded")
+
+
+    def test_malformed_upstream_model_controls_are_502_and_recover(self):
+        """Malformed upstream responses are gateway errors, not bad user input."""
+        cases = (
+            ("/v1/models/load", {"model": "google/gemma-demo"}),
+            ("/v1/models/unload", {"instance_id": "instance-1"}),
+            ("/v1/models/download", {"model": "google/gemma-demo"}),
+            ("/v1/models/download/status?job_id=job_1", None),
+        )
+        with patch.dict(os.environ, {"MATICK_ALLOW_MODEL_DOWNLOADS": "1"}):
+            with patch.object(self.bridge, "request", side_effect=ModelError("JSON remoto inválido")):
+                for path, payload in cases:
+                    with self.subTest(path=path):
+                        with self.assertRaises(HTTPError) as error:
+                            self.call(path, payload)
+                        self.assertEqual(error.exception.code, 502)
+                        self.assertIn("error", json.load(error.exception))
+        self.assertIsNone(self.call("/v1/models/settings")["model"])
+        self.assertEqual(len(self.call("/v1/models")["models"]), 2)
 
 
 
