@@ -42,6 +42,38 @@ try {
     # Otherwise pwsh -File propagates the child failure as the test script exit code.
     $global:LASTEXITCODE = 0
     Write-Host 'PASS: missing executable reports an error from a path with spaces'
+    # Positive smoke test: execute a harmless compiled EXE from a path with spaces.
+    $probeExe = Join-Path $fixture 'MatickStudioLM.exe'
+    $probeResult = Join-Path $fixtureRoot 'launch-probe.txt'
+    $probeSource = @'
+using System;
+using System.IO;
+public static class MatickLauncherProbe {
+    public static int Main() {
+        File.WriteAllText(Environment.GetEnvironmentVariable("MATICK_LAUNCH_PROBE"),
+                          Environment.CurrentDirectory);
+        return 0;
+    }
+}
+'@
+    Add-Type -TypeDefinition $probeSource -OutputAssembly $probeExe -OutputType ConsoleApplication
+    $oldProbe = $env:MATICK_LAUNCH_PROBE
+    try {
+        $env:MATICK_LAUNCH_PROBE = $probeResult
+        $output = & $pwsh -NoProfile -NonInteractive -File $fixtureScript 2>&1 | Out-String
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -ne 0 -or -not (Test-Path -LiteralPath $probeResult)) {
+            throw "Launcher did not start probe executable (exit=$exitCode): $output"
+        }
+        $observed = (Get-Content -LiteralPath $probeResult -Raw).Trim()
+        if ($observed -ne $fixture) {
+            throw "Launcher working directory mismatch: expected '$fixture', got '$observed'"
+        }
+        $global:LASTEXITCODE = 0
+        Write-Host 'PASS: launcher executes a real EXE from its own directory'
+    } finally {
+        $env:MATICK_LAUNCH_PROBE = $oldProbe
+    }
 } finally {
     Remove-Item -LiteralPath $fixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
