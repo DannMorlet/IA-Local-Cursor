@@ -2,7 +2,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$ExePath,
-    [Parameter(Mandatory = $true)][string]$OutputDir
+    [Parameter(Mandatory = $true)][string]$OutputDir,
+    [string]$LlamaRuntimeDir = ''
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -58,6 +59,21 @@ foreach ($relative in @(
     'LICENSE'
 )) {
     Copy-LightFile $relative
+}
+# Motor CPU opcional, compilado por CI desde llama.cpp oficial. Solo se
+# incorporan ejecutable/DLL y licencia; nunca pesos ni CUDA ni archivos locales.
+if ($LlamaRuntimeDir) {
+    $src = (Resolve-Path -LiteralPath $LlamaRuntimeDir).Path
+    foreach ($required in @('llama-server.exe','LICENSE-llama.cpp.txt','BUILD-INFO.txt')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $src $required) -PathType Leaf)) {
+            throw "Falta archivo esencial del motor empaquetado: $required"
+        }
+    }
+    $engineTarget = Join-Path $target 'engine'
+    New-Item -ItemType Directory -Path $engineTarget | Out-Null
+    Get-ChildItem -LiteralPath $src -File |
+        Where-Object { $_.Extension -in @('.exe','.dll','.txt') } |
+        ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $engineTarget }
 }
 $forbidden = @('cuda','models','modelos','node_modules','.venv','weights','checkpoints','build','bin','obj')
 $bad = Get-ChildItem -LiteralPath $target -Directory -Recurse |
