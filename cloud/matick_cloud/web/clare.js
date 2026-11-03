@@ -68,6 +68,7 @@ function setVisible(visible){
   if(liveVisible) animate("waving");
 }
 toggle.addEventListener("click",()=>setVisible(!liveVisible));
+$("clare-sidebar").addEventListener("click",()=>setVisible(!liveVisible));
 $("clare-close").addEventListener("click",()=>setVisible(false));
 $("clare-wave").addEventListener("click",()=>{
   animate("waving");
@@ -187,8 +188,7 @@ async function useAtlas(src){
   sayStatus("Mini Clare original cargada. 🐾");
 }
 async function restoreAtlas(){
-  // La ruta /app/clare/spritesheet-extended.png solo sirve el archivo sincronizado en ESTA PC.
-  try{await useAtlas("/app/clare/spritesheet-extended.png");return;}catch {}
+  // El PNG privado nunca se solicita por HTTP. Solo se recupera del navegador local.
   try{
     const blob=await dbRead();
     if(blob){
@@ -197,7 +197,7 @@ async function restoreAtlas(){
       catch(error){URL.revokeObjectURL(url);throw error;}
     }
   }catch {}
-  sayStatus("Clare está lista. Importa su atlas original de Drive para verla animada.");
+  sayStatus("Importa spritesheet-extended.png desde tu Drive una sola vez.");
 }
 $("clare-import").addEventListener("click",()=>$("clare-file").click());
 $("clare-file").addEventListener("change",async()=>{
