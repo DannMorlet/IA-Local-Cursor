@@ -47,7 +47,11 @@ try {
     foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name,$saved[$name],'Process') }
     Write-Host "Evidencia temporal conservada en $sandbox"
 }
-Start-Sleep -Milliseconds 400
+# El cierre del Job termina al hijo de forma asíncrona; esperar un límite finito.
+for ($i=0; $i -lt 50; $i++) {
+    if (-not (Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue)) { break }
+    Start-Sleep -Milliseconds 100
+}
 if (Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue) {
     throw 'El backend no se cerró junto con el launcher.'
 }

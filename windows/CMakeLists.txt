@@ -13,6 +13,7 @@ target_compile_definitions(MatickStudioLM PRIVATE
 )
 target_link_libraries(MatickStudioLM PRIVATE d3d12 dxgi dxguid winhttp bcrypt)
 if(MSVC)
+    set_property(TARGET MatickStudioLM PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     target_compile_options(MatickStudioLM PRIVATE /W4 /EHsc /utf-8)
 endif()
 
