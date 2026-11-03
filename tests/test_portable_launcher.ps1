@@ -13,7 +13,7 @@ $source = Get-Content -LiteralPath $script -Raw
 foreach ($required in @('Push-Location -LiteralPath $exeDir',
                        'Pop-Location',
                        'Resolve-Path -LiteralPath $exe',
-                       "Join-Path $PSScriptRoot 'MatickStudioLM.exe'")) {
+                        'Join-Path $PSScriptRoot ''MatickStudioLM.exe''')) {
     if (-not $source.Contains($required)) {
         throw "Missing portable launcher safeguard: $required"
     }
