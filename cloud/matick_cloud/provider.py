@@ -113,7 +113,7 @@ class OpenAICompatibleProvider:
             content = result["choices"][0]["message"]["content"]
         except (ValueError, KeyError, IndexError, TypeError) as exc:
             raise ProviderResponseError("Respuesta inválida del proveedor") from exc
-        if not isinstance(content, str) or not content.strip():
+        # Never attribute a response to the selected model when the provider\n        # explicitly reports a different model identity.\n        returned_model = result.get("model") if isinstance(result, dict) else None\n        if returned_model is not None and (not isinstance(returned_model, str) or returned_model != self.model):\n            raise ProviderResponseError("El proveedor respondió con un modelo diferente al seleccionado")\n        if not isinstance(content, str) or not content.strip():
             # HTTP 200 con contenido vacío no es una inferencia completada.
             raise ProviderResponseError("Respuesta del proveedor sin texto")
         # El tiempo incluye transporte HTTP, no es velocidad de decodificación.
