@@ -83,6 +83,23 @@ public static class MatickLauncherProbe {
         }
         $global:LASTEXITCODE = 0
         Write-Host 'PASS: launcher executes a real EXE from its own directory'
+        # Dot-source in this process to check that temporary environment changes
+        # are restored after the EXE exits, including a caller-supplied Cloud URL.
+        $savedCloudUrl = $env:MATICK_CLOUD_URL
+        $savedRenderer = $env:MATICK_RENDERER
+        try {
+            $env:MATICK_CLOUD_URL = 'https://caller.example.test'
+            $env:MATICK_RENDERER = 'dx12'
+            . $fixtureScript -CloudUrl 'http://127.0.0.1:8787' -SafeMode | Out-Null
+            if ($env:MATICK_CLOUD_URL -ne 'https://caller.example.test' -or
+                $env:MATICK_RENDERER -ne 'dx12') {
+                throw 'Launcher did not restore caller environment variables'
+            }
+            Write-Host 'PASS: launcher restores cloud URL and renderer environment'
+        } finally {
+            $env:MATICK_CLOUD_URL = $savedCloudUrl
+            $env:MATICK_RENDERER = $savedRenderer
+        }
     } finally {
         $env:MATICK_LAUNCH_PROBE = $oldProbe
     }
