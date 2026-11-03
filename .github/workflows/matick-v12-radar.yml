@@ -1,0 +1,126 @@
+name: Matick v1.2 - Radar tecnico cada 5 minutos
+
+on:
+  schedule:
+    # GitHub puede retrasar alguna ejecucion; no es un temporizador exacto.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: matick-v12-radar
+  cancel-in-progress: true
+
+jobs:
+  radar:
+    name: Vigilar CI y referencias tecnicas
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Revisar fallos y novedades sin cambiar la aplicacion
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const radarName = 'Matick v1.2 - Radar tecnico cada 5 minutos';
+            const issueTitle = 'Matick v1.2 | Radar CI y novedades tecnicas';
+            const runData = await github.rest.actions.listWorkflowRunsForRepo({
+              owner, repo, per_page: 50
+            });
+            const runs = runData.data.workflow_runs
+              .filter(r => r.name !== radarName && r.status === 'completed');
+            const latest = runs[0];
+            const sixHours = 6 * 60 * 60 * 1000;
+            const recentFailures = runs
+              .filter(r => r.conclusion === 'failure'
+                && Date.now() - Date.parse(r.created_at) < sixHours
+                && !runs.some(s => s.head_branch === r.head_branch
+                  && Date.parse(s.created_at) > Date.parse(r.created_at)
+                  && s.conclusion === 'success'))
+              .slice(0, 5);
+            const prs = await github.rest.pulls.list({
+              owner, repo, state: 'open', per_page: 30
+            });
+            const activePRs = prs.data
+              .filter(p => /matick|cloud|windows|directx|instal|launcher/i.test(p.title))
+              .slice(0, 8);
+            const upstream = [];
+            for (const [upOwner, upRepo] of [
+              ['ggml-org', 'llama.cpp'], ['unslothai', 'unsloth']
+            ]) {
+              try {
+                const result = await github.rest.repos.getLatestRelease({
+                  owner: upOwner, repo: upRepo
+                });
+                upstream.push(
+                  '- ' + upOwner + '/' + upRepo + ': ' +
+                  result.data.tag_name + ' (' + result.data.html_url +
+                  ') - solo referencia; no actualizar sin compatibilidad comprobada'
+                );
+              } catch (error) {
+                if (error.status !== 404) {
+                  core.warning('No se pudo consultar ' + upOwner + '/' + upRepo +
+                    ': ' + error.message);
+                }
+              }
+            }
+            const items = [
+              '<!-- matick-v12-radar -->',
+              '# Radar tecnico Matick v1.2',
+              '',
+              'Vigilancia automatizada; NO aplica cambios, no valida una GPU fisica',
+              'y no implica que la app este lista para produccion.',
+              '',
+              '## Ultimo CI observado',
+              latest
+                ? '- ' + latest.conclusion + ': ' + latest.html_url +
+                  ' (rama ' + latest.head_branch + ')'
+                : '- Sin ejecuciones de CI completadas en la ventana consultada.',
+              '',
+              '## Fallos recientes sin ejecucion exitosa posterior en la misma rama',
+              ...(recentFailures.length
+                ? recentFailures.map(r =>
+                    '- ' + r.head_branch + ': ' + r.html_url + ' (' + r.conclusion + ')')
+                : ['- No se detectaron fallos nuevos en la ventana consultada.']),
+              '',
+              '## Pull requests abiertos relevantes',
+              ...(activePRs.length
+                ? activePRs.map(p =>
+                    '- #' + p.number + ': ' + p.title + ' (' + p.html_url + ')')
+                : ['- Sin PRs relacionados.']),
+              '',
+              '## Versiones externas para evaluar, NO instalar automaticamente',
+              ...(upstream.length ? upstream : ['- Sin releases consultables.']),
+              '',
+              '## Proxima accion para el ciclo de desarrollo horario',
+              '- Reproducir y corregir primero fallos confirmados de CI y del arranque x64.',
+              '- Probar instalacion sobre C:\\IA\\Matick Studio LM sin borrar datos/modelos.',
+              '- Verificar compatibilidad y licencias antes de adoptar versiones externas.',
+              '- No confundir CI verde con prueba visual o inferencia en RTX 5060.'
+            ];
+            const body = items.join('\n');
+            await core.summary.addRaw(body).write();
+            const issues = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', per_page: 100
+            });
+            const existing = issues.data.find(i =>
+              !i.pull_request && i.title === issueTitle);
+            if (!existing) {
+              const created = await github.rest.issues.create({
+                owner, repo, title: issueTitle, body
+              });
+              core.info('Radar creado: ' + created.data.html_url);
+            } else if ((existing.body || '') !== body) {
+              await github.rest.issues.update({
+                owner, repo, issue_number: existing.number, body
+              });
+              core.info('Radar actualizado: ' + existing.html_url);
+            } else {
+              core.info('Sin cambios de estado; no se edita el issue.');
+            }
