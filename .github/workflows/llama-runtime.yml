@@ -1,0 +1,30 @@
+name: Matick v1.2 - Motor llama.cpp CPU Windows
+
+on:
+  push:
+    branches: [feature/matick-v12-llama-inference]
+    paths:
+      - 'tools/build_llama_cpu.ps1'
+      - '.github/workflows/llama-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-llama-cpu:
+    name: Compilar motor CPU x64 independiente
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compilar llama-server desde tag y SHA verificados
+        shell: pwsh
+        run: .\tools\build_llama_cpu.ps1
+      - name: Publicar runtime CPU con licencia
+        uses: actions/upload-artifact@v4
+        with:
+          name: Matick-v1.2-llama.cpp-CPU-x64
+          path: out/llama-runtime/
+          if-no-files-found: error
+          retention-days: 30
