@@ -103,7 +103,14 @@ jobs:
             $proc.Refresh()
             if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
           }
+      - name: Recuperar motor CPU compilado y verificado
+        id: llama_cache
+        uses: actions/cache@v4
+        with:
+          path: out/llama-runtime
+          key: matick-llama-cpu-v0.8.0-8642541b-${{ hashFiles('tools/build_llama_cpu.ps1') }}
       - name: Compilar motor llama.cpp CPU Windows x64 (MIT, SHA fijado)
+        if: steps.llama_cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: .\\tools\\build_llama_cpu.ps1
       - name: Construir paquete portable ligero
