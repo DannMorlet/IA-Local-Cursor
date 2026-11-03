@@ -25,6 +25,10 @@ foreach ($file in $clareFiles) {
         throw "Falta recurso de Mini Clare en el instalador: $file"
     }
 }
+$engineFile=Join-Path $sandbox 'cloud\matick_cloud\local_engine.py'
+if(-not (Test-Path -LiteralPath $engineFile)) {
+  throw 'El instalador omitió el controlador del motor llama.cpp local.'
+}
 $moduleFile=Join-Path $sandbox 'cloud\matick_cloud\web\chat_payload.mjs'
 if(-not (Test-Path -LiteralPath $moduleFile)) {
   throw 'El instalador omitió chat_payload.mjs: la interfaz no podrá importar el chat.'
