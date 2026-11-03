@@ -246,7 +246,10 @@ class MatickHandler(BaseHTTPRequestHandler):
                 "events": {"configured": True},
                 "mcp": {"configured": False, "reason": "ToolHub funciona separado del servidor cloud"},
                 "devices": {"configured": False},
-                "cloud_model": self.server.model_state.get()["model"] or (self.server.provider.model if self.server.provider.configured else None),
+                "cloud_model": self.server.model_state.get()["model"] or (
+                    self.server.provider.model
+                    if not self.server.use_local and self.server.provider.configured else None
+                ),
             })
             return
 
