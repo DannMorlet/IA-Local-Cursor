@@ -19,3 +19,26 @@ foreach ($required in @('Push-Location -LiteralPath $exeDir',
     }
 }
 Write-Host 'PASS: launcher parses and preserves working directory safeguards'
+
+# Behavioral regression: execute the launcher from a directory with spaces and
+# require a clear error when the EXE is missing. No user installation is touched.
+$fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('Matick launcher fixture ' + [guid]::NewGuid().ToString('N'))
+$fixture = Join-Path $fixtureRoot 'portable with spaces'
+New-Item -ItemType Directory -Path $fixture -Force | Out-Null
+try {
+    $fixtureScript = Join-Path $fixture 'start_matick_portable.ps1'
+    Copy-Item -LiteralPath $script -Destination $fixtureScript
+    $pwsh = (Get-Process -Id $PID).Path
+    $savedLocation = (Get-Location).Path
+    $output = & $pwsh -NoProfile -NonInteractive -File $fixtureScript 2>&1 | Out-String
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -eq 0 -or $output -notmatch 'MatickStudioLM.exe no encontrado') {
+        throw "Missing-EXE smoke test failed (exit=$exitCode): $output"
+    }
+    if ((Get-Location).Path -ne $savedLocation) {
+        throw 'Launcher smoke test changed the caller working directory'
+    }
+    Write-Host 'PASS: missing executable reports an error from a path with spaces'
+} finally {
+    Remove-Item -LiteralPath $fixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
