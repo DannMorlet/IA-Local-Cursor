@@ -26,6 +26,7 @@ foreach ($relative in @(
     'cloud/matick_cloud/server.py',
     'cloud/matick_cloud/provider.py',
     'cloud/matick_cloud/models.py',
+    'cloud/matick_cloud/local_engine.py',
     'cloud/matick_cloud/tasks.py',
     'cloud/matick_cloud/web/index.html',
     'cloud/matick_cloud/web/style.css',
