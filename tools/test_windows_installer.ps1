@@ -15,6 +15,16 @@ $exe=Join-Path $sandbox 'MatickStudioLM.exe'
 $py=Join-Path $sandbox 'runtime\python.exe'
 if(-not (Test-Path $exe)){throw 'EXE no instalado.'}
 if(-not (Test-Path $py)){throw 'Runtime Python no instalado.'}
+$clareFiles = @(
+    'cloud\matick_cloud\web\clare.js',
+    'cloud\matick_cloud\web\clare_behavior.mjs',
+    'cloud\matick_cloud\web\clare.css'
+)
+foreach ($file in $clareFiles) {
+    if(-not (Test-Path (Join-Path $sandbox $file))) {
+        throw "Falta recurso de Mini Clare en el instalador: $file"
+    }
+}
 $moduleFile=Join-Path $sandbox 'cloud\matick_cloud\web\chat_payload.mjs'
 if(-not (Test-Path -LiteralPath $moduleFile)) {
   throw 'El instalador omitió chat_payload.mjs: la interfaz no podrá importar el chat.'
@@ -40,6 +50,12 @@ try {
   # Verificar dependencias ES Module en el producto YA instalado; /health no basta.
   $mainScript=Invoke-WebRequest -Uri 'http://127.0.0.1:8787/app/app.js' -TimeoutSec 5
   $module=Invoke-WebRequest -Uri 'http://127.0.0.1:8787/app/chat_payload.mjs' -TimeoutSec 5
+  foreach ($asset in @('clare.js','clare_behavior.mjs','clare.css')) {
+    $resp=Invoke-WebRequest -Uri ("http://127.0.0.1:8787/app/"+$asset) -TimeoutSec 5
+    if($resp.StatusCode -ne 200) {
+      throw "Recurso de Mini Clare inaccesible por HTTP: $asset"
+    }
+  }
   if($mainScript.StatusCode -ne 200 -or $module.StatusCode -ne 200) {
     throw 'El panel instalado no entrega todos los scripts JavaScript.'
   }

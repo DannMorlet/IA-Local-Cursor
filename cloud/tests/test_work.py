@@ -42,6 +42,9 @@ class WorkTests(unittest.TestCase):
             ("/app", b"Matick Studio", "text/html"),
             ("/app/app.js", b"refreshModels", "text/javascript"),
             ("/app/style.css", b".shell", "text/css"),
+            ("/app/clare.js", b"restoreAtlas", "text/javascript"),
+            ("/app/clare_behavior.mjs", b"frameCoordinates", "text/javascript"),
+            ("/app/clare.css", b".clare-widget", "text/css"),
         ]:
             resp, data = self.call(path)
             self.assertEqual(resp.status, 200)
@@ -99,7 +102,9 @@ class WorkTests(unittest.TestCase):
                     self.buttons.append(a)
         _, html = self.call("/app")
         _, js = self.call("/app/app.js")
+        _, clare = self.call("/app/clare.js")
         markup, source = html.decode(), js.decode()
+        source += "\n" + clare.decode()
         parsed = Buttons()
         parsed.feed(markup)
         self.assertEqual(len(parsed.ids), len(set(parsed.ids)))
@@ -114,6 +119,10 @@ class WorkTests(unittest.TestCase):
             else:
                 self.fail("Botón sin acción explícita: " + str(button))
         self.assertIn('id="cancel-login"', markup)
+        self.assertIn('id="clare-toggle"', markup)
+        self.assertIn('id="clare-widget"', markup)
+        self.assertIn('id="clare-speak"', markup)
+        self.assertIn('id="clare-import"', markup)
         self.assertIn('data-focus="task-board"', markup)
         self.assertIn('id="home-send"', markup)
         self.assertIn("selectedModelReadiness()", source)
@@ -137,6 +146,17 @@ class WorkTests(unittest.TestCase):
                         submit.index('$("prompt").value="";state.chat.push'))
         self.assertIn('showMessage("No se pudo enviar: "+err.message)', submit)
         self.assertIn('$("prompt").focus(); // Conservar el texto', submit)
+
+    def test_mini_clare_source_is_not_publicly_embedded(self):
+        _, page = self.call("/app")
+        markup = page.decode()
+        self.assertIn('id="clare-file"', markup)
+        self.assertIn('src="/app/clare.js"', markup)
+        self.assertNotIn('drive.google.com/file/d/', markup)
+        # Sólo JS/CSS privados al repositorio; el atlas se importa localmente.
+        _, script = self.call("/app/clare.js")
+        self.assertIn(b"indexedDB", script)
+        self.assertIn(b"speechSynthesis", script)
 
     def test_create_and_update_tasks(self):
         _, data = self.call("/v1/tasks")

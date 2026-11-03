@@ -339,6 +339,9 @@ $("chat-form").addEventListener("submit",async e=>{
     // Un cambio de modelo o un chat limpiado invalidan respuestas pendientes.
     applyChatResultIfCurrent(requestEpoch,state.chatEpoch,()=>{
       chatBubble("assistant",response.content);
+      // Entregar a Clare sólo respuestas reales y vigentes del chat.
+      window.dispatchEvent(new CustomEvent("matick:assistant-message",
+        {detail:{text:response.content}}));
       state.chat.push({role:"assistant",content:response.content});
       state.previousResponseId=stateful?(response.response_id||null):null;
       state.conversationModel=state.selected;

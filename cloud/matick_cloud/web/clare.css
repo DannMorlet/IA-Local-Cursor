@@ -1,0 +1,98 @@
+/* Mini-Clare: widget flotante de Matick Cloud, original del usuario desde Drive local.
+   Sin descargar recursos de internet ni publicar en el repositorio la imagen privada. */
+.clare-widget {
+  position: fixed; z-index: 24; right: 22px; bottom: 24px;
+  width: min(272px, calc(100vw - 20px)); min-width: 190px;
+  overflow: hidden; border-radius: 21px;
+  border: 1px solid #65578d;
+  background: linear-gradient(155deg, rgba(34,30,52,.98), rgba(14,16,29,.98));
+  color: #f7f5ff; box-shadow: 0 13px 34px rgba(0,0,0,.26);
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-size: 12px; user-select: none;
+}
+.clare-widget[hidden], .clare-fallback[hidden] { display: none !important; }
+.clare-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; min-height: 40px; padding: 9px 10px 8px 13px;
+  background: #211e31; border-bottom: 1px solid #443954;
+  cursor: move; touch-action: none;
+}
+.clare-header strong { font-size: 12px; color: #fcfaff; }
+.clare-header small { display: block; font-size: 10px; color: #d1c6f0; }
+.clare-widget button {
+  border: 1px solid #584b79; color: #f9f7ff; background: #332c4d;
+  border-radius: 12px; padding: 7px 9px; line-height: 1.1;
+}
+.clare-widget button:hover { background: #504271; }
+.clare-widget button:focus-visible, .clare-widget textarea:focus-visible {
+  outline: 2px solid #ab94ff; outline-offset: 2px;
+}
+.clare-stage {
+  position: relative; display: flex; justify-content: center; align-items: end;
+  height: 145px; padding: 12px 7px 5px;
+  background: radial-gradient(ellipse at center 88%, #4b357b70, transparent 68%);
+}
+.clare-sprite {
+  width: 112px; height: 121.33px; flex: 0 0 auto;
+  background-repeat: no-repeat; background-color: transparent;
+  background-position: 0 0; will-change: background-position, transform;
+}
+.clare-fallback {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  color: #e9dfff; font-size: 58px;
+}
+.clare-message {
+  margin: 0 10px 9px; padding: 9px 10px; min-height: 34px;
+  border-radius: 13px; color: #f6f1ff; background: #3a3153;
+  border: 1px solid #6c568e; line-height: 1.35;
+  overflow-wrap: anywhere; max-height: 86px; overflow-y: auto;
+  user-select: text;
+}
+.clare-commands {
+  display: grid; grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 5px; margin: 0 10px 8px;
+}
+.clare-commands button { min-width: 0; padding: 8px 3px; white-space: nowrap; font-size: 11px; }
+.clare-voice { margin: 0 10px 8px; display: flex; gap: 6px; }
+.clare-voice textarea {
+  width: 100%; min-width: 0; height: 46px; min-height: 38px; max-height: 95px;
+  resize: vertical; border-radius: 12px; border: 1px solid #675785;
+  color: #fff; background: #201c31; padding: 7px 8px;
+  font: inherit; font-size: 11px; user-select: text;
+}
+.clare-voice button { flex: 0 0 auto; background: #3169d8; border-color: #5586f0; }
+.clare-bottom {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  padding: 0 10px 8px;
+}
+.clare-bottom label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; line-height: 1.15; cursor: pointer;
+}
+.clare-bottom input[type=checkbox] { accent-color: #a18bff; }
+.clare-bottom button { font-size: 10px; }
+.clare-status {
+  display: block; min-height: 16px; padding: 0 11px 9px;
+  color: #d6cbea; font-size: 10px; line-height: 1.3;
+}
+#clare-toggle[aria-pressed=true] { background: #e9dff9; color: #6642bd; }
+#clare-sidebar { color: #645b89; }
+#clare-sidebar:hover { background: #efebff; }
+@media (max-width: 700px), (orientation: portrait) {
+  .clare-widget { top: 78px; bottom: auto; right: 10px; width: min(250px, calc(100vw - 20px)); }
+  .clare-stage { height: 127px; }
+  .clare-message { max-height: 65px; }
+}
+@media (max-width: 380px) {
+  .clare-widget { width: min(215px, calc(100vw - 16px)); right: 8px; }
+  .clare-widget button { padding: 6px 5px; }
+  .clare-stage { height: 116px; }
+}
+@media (max-height: 500px) {
+  .clare-stage { height: 112px; }
+  .clare-message { max-height: 45px; }
+  .clare-voice textarea { height: 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clare-sprite { will-change: auto; }
+}
