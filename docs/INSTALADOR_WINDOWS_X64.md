@@ -1,6 +1,6 @@
 # Matick Studio LM Cloud v1.2.0 — Vista previa Windows x64
 
-Este ZIP contiene **MatickStudioLM-v1.2.0-x64-Setup.exe** (instalador Windows) y un informe SHA-256. El instalador no necesita instalar Python, Node, LM Studio ni Inno Setup en el PC de destino. **Para inferencia local GGUF aún se requiere llama-server.exe compatible y modelos GGUF propios; consulta docs/MOTOR_LOCAL_GGUF_V12.md.**
+Este ZIP contiene **MatickStudioLM-v1.2.0-x64-Setup.exe** (instalador Windows) y un informe SHA-256. El instalador no necesita instalar Python, Node, LM Studio ni Inno Setup en el PC de destino. **Este paquete incluye llama-server CPU x64, pero debes aportar tus modelos GGUF. La aceleración CUDA de la RTX 5060 no está incluida ni verificada; consulta docs/MOTOR_LOCAL_GGUF_V12.md.**
 
 ## Instalación
 
