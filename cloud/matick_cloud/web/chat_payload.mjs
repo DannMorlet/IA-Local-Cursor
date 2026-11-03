@@ -110,3 +110,32 @@ export function resetForAuthenticatedSession(state) {
   state.loadedInstances=[];
   state.tasks=[];
 }
+
+/** La aceptación de /models/unload tampoco prueba liberación de VRAM física. */
+export function modelUnloadFeedback({provider="", inventoryFresh=false, models=[]}={}, model="", instanceId="") {
+  if(!inventoryFresh) return "Descarga solicitada, pero no se pudo verificar el inventario.";
+  const item=Array.isArray(models) ? models.find(row=>row?.key===model) : null;
+  if(!item) return "Descarga solicitada; el modelo ya no aparece en el catálogo.";
+  if(provider!=="rest-v1") return "Solicitud enviada; el proveedor no confirma la memoria liberada.";
+  const instances=Array.isArray(item.loaded_instances) ? item.loaded_instances : [];
+  return instances.some(row=>row?.id===instanceId) ?
+    "Descarga solicitada; REST v1 todavía reporta la instancia cargada." :
+    "REST v1 ya no reporta la instancia; RAM/VRAM física sin medir.";
+}
+
+/** Serializa acciones de modelos para impedir cargas/descargas duplicadas por doble clic. */
+export function createExclusiveAction(onBusyChange=()=>{}) {
+  let busy=false;
+  return async operation=>{
+    if(busy) return false;
+    busy=true;
+    try {
+      onBusyChange(true);
+      await operation();
+      return true;
+    } finally {
+      busy=false;
+      onBusyChange(false);
+    }
+  };
+}
