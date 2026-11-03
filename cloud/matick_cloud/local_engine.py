@@ -117,13 +117,20 @@ class LocalLlamaEngine:
     def models(self):
         with self._lock:
             loaded = self._model if self._ready() else None
-            return [
-                {"key": mid, "name": path.stem, "type": "llm", "format": "GGUF",
-                 "size_bytes": path.stat().st_size,
-                 "source": "llama.cpp-local",
-                 "loaded_instances": ([{"id": mid}] if mid == loaded else [])}
-                for mid, path in self._inventory().items()
-            ]
+            catalog = []
+            for mid, path in self._inventory().items():
+                # Un GGUF puede desaparecer entre rglob() y stat() (descarga,
+                # renombrado o unidad desconectada). No tumbar /v1/models.
+                try:
+                    size = path.stat().st_size
+                except OSError:
+                    continue
+                catalog.append({
+                    "key": mid, "name": path.stem, "type": "llm", "format": "GGUF",
+                    "size_bytes": size, "source": "llama.cpp-local",
+                    "loaded_instances": ([{"id": mid}] if mid == loaded else []),
+                })
+            return catalog
 
     def load(self, model, params):
         params = valid_params(params, LOAD_PARAMS)
