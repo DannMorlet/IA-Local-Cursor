@@ -66,7 +66,7 @@ if ($bad) { throw "Distribución contiene carpetas prohibidas" }
 $items = Get-ChildItem -LiteralPath $target -File -Recurse
 $manifest = [ordered]@{
     name = 'Matick Studio LM'
-    package_version = '1.0.1'
+    package_version = '1.2.0'
     independent_from_local_project = $true
     generated_utc = (Get-Date).ToUniversalTime().ToString('o')
     files = @($items | ForEach-Object {
