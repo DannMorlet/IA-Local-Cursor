@@ -119,9 +119,9 @@ jobs:
       - name: Publicar ZIP con instalador, guía y suma SHA256
         uses: actions/upload-artifact@v4
         with:
-          name: MatickStudioLM-v1.0.1-Windows-x64-Instalador
+          name: MatickStudioLM-v1.2.0-Windows-x64-Instalador
           path: |
-            out/setup/MatickStudioLM-v1.0.1-x64-Setup.exe
+            out/setup/MatickStudioLM-v1.2.0-x64-Setup.exe
             out/setup/LEEME_INSTALADOR.md
             out/setup/SHA256SUMS.txt
           if-no-files-found: error
