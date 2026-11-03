@@ -42,6 +42,10 @@ jobs:
         env:
           PYTHONPATH: cloud
         run: python -m unittest discover -s cloud/tests -p test_rest_v1.py -v
+      - name: Inferencia local GGUF con proceso llama.cpp simulado
+        env:
+          PYTHONPATH: cloud
+        run: python -m unittest discover -s cloud/tests -p test_local_engine.py -v
       - name: Pruebas de tareas Work
         id: work
         env:
