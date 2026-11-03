@@ -172,7 +172,8 @@ class MatickHandler(BaseHTTPRequestHandler):
         web_routes = {"/app": ("index.html", "text/html; charset=utf-8"),
                       "/app/app.js": ("app.js", "text/javascript; charset=utf-8"),
                       "/app/chat_payload.mjs": ("chat_payload.mjs", "text/javascript; charset=utf-8"),
-                      "/app/style.css": ("style.css", "text/css; charset=utf-8")}
+                      "/app/style.css": ("style.css", "text/css; charset=utf-8"),
+                      "/app/responsive.css": ("responsive.css", "text/css; charset=utf-8")}
         if route.path in web_routes:
             filename, mime = web_routes[route.path]
             location = Path(__file__).parent / "web" / filename

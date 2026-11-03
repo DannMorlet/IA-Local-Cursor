@@ -42,6 +42,7 @@ class WorkTests(unittest.TestCase):
             ("/app", b"Matick Studio", "text/html"),
             ("/app/app.js", b"refreshModels", "text/javascript"),
             ("/app/style.css", b".shell", "text/css"),
+            ("/app/responsive.css", b"orientation: portrait", "text/css"),
         ]:
             resp, data = self.call(path)
             self.assertEqual(resp.status, 200)
@@ -137,6 +138,22 @@ class WorkTests(unittest.TestCase):
                         submit.index('$("prompt").value="";state.chat.push'))
         self.assertIn('showMessage("No se pudo enviar: "+err.message)', submit)
         self.assertIn('$("prompt").focus(); // Conservar el texto', submit)
+
+    def test_adaptive_pc_and_portrait_chat(self):
+        _, html = self.call("/app")
+        _, css = self.call("/app/responsive.css")
+        markup, stylesheet = html.decode("utf-8"), css.decode("utf-8")
+        self.assertIn('href="/app/responsive.css"', markup)
+        self.assertIn('max-width: 700px', stylesheet)
+        self.assertIn('orientation: portrait', stylesheet)
+        self.assertIn('max-height: 620px', stylesheet)
+        self.assertIn('grid-template-columns: minmax(0,1fr)', stylesheet)
+        self.assertIn('#view-chat .message.user', stylesheet)
+        self.assertIn('#view-chat .message.assistant', stylesheet)
+        self.assertIn('position: fixed; inset: auto 0 0', stylesheet)
+        self.assertIn('height: calc(100dvh', stylesheet)
+        self.assertIn('overflow-y: auto', stylesheet)
+        self.assertNotIn('fonts.googleapis.com', stylesheet)
 
     def test_create_and_update_tasks(self):
         _, data = self.call("/v1/tasks")
