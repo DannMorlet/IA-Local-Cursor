@@ -38,6 +38,9 @@ try {
     if ((Get-Location).Path -ne $savedLocation) {
         throw 'Launcher smoke test changed the caller working directory'
     }
+    # The negative test expects a nonzero native exit code; clear it after validation.
+    # Otherwise pwsh -File propagates the child failure as the test script exit code.
+    $global:LASTEXITCODE = 0
     Write-Host 'PASS: missing executable reports an error from a path with spaces'
 } finally {
     Remove-Item -LiteralPath $fixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
