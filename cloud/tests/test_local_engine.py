@@ -130,6 +130,34 @@ class LocalEngineTests(unittest.TestCase):
         self.assertEqual(self.file.read_bytes(), digest)
         self.assertTrue(self.file.is_file())
 
+    def test_rejects_symlink_outside_models_without_touching_weights(self):
+        # Evita cargar pesos ajenos mediante enlaces dentro de models.
+        external = Path(self.tmp.name) / "modelo-ajeno.gguf"
+        original = b"GGUF externo: conservar intacto"
+        external.write_bytes(original)
+        link = self.home / "models" / "enlace-externo.gguf"
+        link.symlink_to(external)
+        try:
+            inventory = self.engine.models()
+            self.assertEqual(len(inventory), 1)
+            self.assertEqual(inventory[0]["name"], "Mi modelo mexicano")
+            with self.assertRaisesRegex(ValueError, "GGUF disponible"):
+                self.engine.load(self.engine._id(external.resolve()), {})
+            self.assertEqual(external.read_bytes(), original)
+        finally:
+            link.unlink()
+
+    def test_executable_that_exits_never_reports_model_loaded(self):
+        # Un motor que falla al iniciar no puede fingir carga ni dejar estado.
+        self.exe.write_text("#!/bin/sh\\nexit 7\\n", encoding="utf-8")
+        self.exe.chmod(0o755)
+        key = self.engine.models()[0]["key"]
+        with self.assertRaises(ModelOffline):
+            self.engine.load(key, {})
+        self.assertFalse(self.engine.models()[0]["loaded_instances"])
+        self.assertIsNone(self.engine._model)
+        self.assertEqual(self.file.read_bytes(), b"GGUF test: no es un modelo real")
+
     def test_matick_api_end_to_end_with_fake_llama_server(self):
         db = self.home / "matick-test.db"
         server = MatickHTTPServer(
