@@ -81,6 +81,12 @@ bool MatickPreferGDI() {
     return length && length < 24 && _wcsicmp(value, L"gdi") == 0;
 }
 
+bool MatickWantDX12() {
+    wchar_t value[24] = {};
+    DWORD length = GetEnvironmentVariableW(L"MATICK_RENDERER", value, 24);
+    return length && length < 24 && _wcsicmp(value, L"dx12") == 0;
+}
+
 void MatickDrawSafeBackground(HWND window, HDC dc) {
     RECT client{};
     GetClientRect(window, &client);

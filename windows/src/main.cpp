@@ -380,14 +380,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
         return 1;
     }
 
-    constexpr DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+    constexpr DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
     MatickInitScale(style);
     gWidth = static_cast<UINT>(MatickScale(kDesignWidth));
     gHeight = static_cast<UINT>(MatickScale(kDesignHeight));
     RECT bounds = {0, 0, static_cast<LONG>(gWidth), static_cast<LONG>(gHeight)};
     AdjustWindowRectExForDpi(&bounds, style, FALSE, 0, GetDpiForSystem());
     HWND window = CreateWindowExW(
-        0, cls.lpszClassName, L"Matick Studio LM | DirectX 12 + Cloud",
+        0, cls.lpszClassName, L"Matick Studio LM",
         style, CW_USEDEFAULT, CW_USEDEFAULT,
         bounds.right - bounds.left, bounds.bottom - bounds.top,
         nullptr, nullptr, instance, &renderer
@@ -408,9 +408,12 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     MatickBackend backend;
     backend.StartIfBundled();
 
-    const bool forceGdi = MatickPreferGDI();
-    if (forceGdi) {
+    // GDI es el modo por defecto: con un swapchain DX12 (flip model) sobre la
+    // ventana, Windows oculta los controles Win32 tras el primer cuadro.
+    if (MatickPreferGDI()) {
         MatickLog(L"GDI_SAFE_MODE_USER_SELECTED");
+    } else if (!MatickWantDX12()) {
+        MatickLog(L"GDI_DEFAULT_RENDERER");
     } else {
         try {
             MatickLog(L"DX12_INIT_BEGIN");

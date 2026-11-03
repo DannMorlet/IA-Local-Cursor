@@ -174,7 +174,7 @@ void DashboardInstall(HWND window, HINSTANCE instance) {
     Label(window, instance, 44, L"Agentes", 668, 22, 100, 29, 18);
     Label(window, instance, 45, L"Modelos", 801, 22, 100, 29, 18);
     Label(window, instance, 46, L"Herramientas", 927, 22, 142, 29, 18);
-    Label(window, instance, 47, L"DirectX 12", 1306, 22, 156, 29, 17, FW_SEMIBOLD);
+    Label(window, instance, 47, L"Windows x64", 1306, 22, 156, 29, 17, FW_SEMIBOLD);
     HWND workButton = CreateWindowExW(0, L"BUTTON", L"Abrir Matick Work",
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
         MatickScale(1097), MatickScale(15), MatickScale(193), MatickScale(39), window, reinterpret_cast<HMENU>(250), instance, nullptr);
@@ -391,6 +391,6 @@ void DashboardSetRendererStatus(bool dx12Ready) {
     if (!gRendererStatus) return;
     SetWindowTextW(gRendererStatus, dx12Ready
         ? L"Interfaz: DirectX 12 operativo"
-        : L"Interfaz: modo seguro GDI - revisa %LOCALAPPDATA%\\MatickStudioLM\\logs\\render.log");
+        : L"Interfaz: Windows nativo (GDI). DirectX 12 opcional: MATICK_RENDERER=dx12");
     InvalidateRect(gRendererStatus, nullptr, TRUE);
 }
