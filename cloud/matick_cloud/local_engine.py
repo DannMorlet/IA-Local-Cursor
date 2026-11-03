@@ -26,7 +26,7 @@ class LocalLlamaEngine:
 
     def __init__(self, home, models_dir=None, executable=None, enabled=True, startup_timeout=90):
         self.home = Path(home).expanduser().resolve()
-        self.models_dir = Path(models_dir or self.home / "models").expanduser().resolve()
+        self.models_dir = Path(models_dir or self.home).expanduser().resolve()
         name = "llama-server.exe" if os.name == "nt" else "llama-server"
         self.executable = Path(executable or self.home / "engine" / name).expanduser().resolve()
         self.enabled = enabled

@@ -81,7 +81,7 @@
       <form class="composer" id="chat-form"><label class="sr-only" for="prompt">Escribe a Matick</label><textarea id="prompt" rows="3" placeholder="Escribe a Matick…   Ctrl + Enter para enviar" maxlength="8000" required></textarea><div class="composer-bottom"><span id="model-chip">Modelo sin seleccionar</span><button type="submit" class="primary" id="send-chat">Enviar ↗</button></div></form>
     </section>
     <section class="view hidden" id="view-models">
-      <div class="section-heading top"><div><div class="eyebrow">MOTOR LOCAL GGUF · REST V1 OPCIONAL</div><h1>Modelos y parámetros</h1><p>Matick puede iniciar llama.cpp sobre modelos GGUF de tu PC. Carpeta predeterminada: C:\IA\Matick Studio LM\models. No se descargan ni borran pesos automáticamente.</p></div><button class="ghost" id="refresh-models">↻ Actualizar</button></div>
+      <div class="section-heading top"><div><div class="eyebrow">MOTOR LOCAL GGUF · REST V1 OPCIONAL</div><h1>Modelos y parámetros</h1><p>Matick puede iniciar llama.cpp sobre modelos GGUF de tu PC. Busca archivos GGUF dentro de C:\IA\Matick Studio LM y sus subcarpetas. No se descargan ni borran pesos automáticamente.</p></div><button class="ghost" id="refresh-models">↻ Actualizar</button></div>
       <div class="model-layout">
         <div class="panel"><div class="panel-title"><h2>Modelos disponibles</h2><span id="model-count">0</span></div><input type="search" id="model-search" placeholder="Buscar modelo…"><div id="model-list" class="model-list"><div class="empty">Inicia sesión para buscar modelos locales GGUF o proveedores externos.</div></div></div>
         <div class="panel settings"><div class="panel-title"><h2>Configuración</h2><span class="pill" id="model-current">Sin modelo</span></div>
