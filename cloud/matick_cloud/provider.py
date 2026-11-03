@@ -133,7 +133,7 @@ class OpenAICompatibleProvider:
             stats["output_truncated"] = True
         return {
             "model": self.model,
-            "content": content[:12000],
+            "content": (content[:11950] + "\n[Respuesta recortada: el proveedor excedió el límite de visualización]") if truncated else content,
             "stats": stats,
             "parameters_forwarded": sorted(forwarded),
             "parameters_not_forwarded": not_forwarded,
