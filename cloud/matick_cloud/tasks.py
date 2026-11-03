@@ -26,7 +26,8 @@ class TaskStore:
                                 "VALUES(?,?,?,?,?)",
                                 (title.strip(), detail, "todo", now, now))
             return {"id": cursor.lastrowid, "title": title.strip(),
-                    "detail": detail, "status": "todo", "created_at": now}
+                    "detail": detail, "status": "todo", "created_at": now,
+                    "updated_at": now}
     def set_status(self, task_id, status):
         if type(task_id) is not int or task_id < 1 or status not in ("todo","doing","done"):
             raise ValueError("ID o estado de tarea inválido")
@@ -36,4 +37,4 @@ class TaskStore:
                                 (status, now, task_id))
             if not result.rowcount:
                 raise ValueError("Tarea no encontrada")
-        return {"id": task_id, "status": status}
+        return {"id": task_id, "status": status, "updated_at": now}
