@@ -30,6 +30,7 @@ foreach ($relative in @(
     'cloud/matick_cloud/web/index.html',
     'cloud/matick_cloud/web/style.css',
     'cloud/matick_cloud/web/app.js',
+    'cloud/matick_cloud/web/chat_payload.mjs',
     'cloud/matick_cloud/client.py',
     'cloud/.env.example',
     'integrations/toolhub/package.json',
