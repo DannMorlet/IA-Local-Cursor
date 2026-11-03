@@ -15,6 +15,10 @@ $exe=Join-Path $sandbox 'MatickStudioLM.exe'
 $py=Join-Path $sandbox 'runtime\python.exe'
 if(-not (Test-Path $exe)){throw 'EXE no instalado.'}
 if(-not (Test-Path $py)){throw 'Runtime Python no instalado.'}
+$moduleFile=Join-Path $sandbox 'cloud\matick_cloud\web\chat_payload.mjs'
+if(-not (Test-Path -LiteralPath $moduleFile)) {
+  throw 'El instalador omitió chat_payload.mjs: la interfaz no podrá importar el chat.'
+}
 & $py -c 'import sqlite3, matick_cloud; print(matick_cloud.__version__)'
 if($LASTEXITCODE -ne 0){throw 'Python embebido no pudo importar Matick Core.'}
 $env:MATICK_RENDERER='gdi'
@@ -33,6 +37,19 @@ try {
     }
   }
   if(-not $healthy){throw 'El backend local empaquetado no respondió en 8787.'}
+  # Verificar dependencias ES Module en el producto YA instalado; /health no basta.
+  $mainScript=Invoke-WebRequest -Uri 'http://127.0.0.1:8787/app/app.js' -TimeoutSec 5
+  $module=Invoke-WebRequest -Uri 'http://127.0.0.1:8787/app/chat_payload.mjs' -TimeoutSec 5
+  if($mainScript.StatusCode -ne 200 -or $module.StatusCode -ne 200) {
+    throw 'El panel instalado no entrega todos los scripts JavaScript.'
+  }
+  if(-not $mainScript.Content.Contains('chat_payload.mjs')) {
+    throw 'La interfaz no referencia su módulo de chat correctamente.'
+  }
+  if(-not $module.Content.Contains('export function buildChatPayload')) {
+    throw 'Módulo de chat instalado incompleto o no servido.'
+  }
+  Write-Host 'Scripts de Matick Work instalados: app.js y chat_payload.mjs servidos con HTTP 200.'
   Write-Host 'GUI y backend local responden tras instalar.'
 } finally {
   $gui.Refresh()
