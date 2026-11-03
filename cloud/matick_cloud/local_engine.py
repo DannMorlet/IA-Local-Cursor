@@ -44,8 +44,12 @@ class LocalLlamaEngine:
             r"C:\IA\Matick Studio LM" if os.name == "nt"
             else str(Path.home() / "Matick Studio LM")
         )
+        engine_name = "llama-server.exe" if os.name == "nt" else "llama-server"
+        personal_binary = Path(home) / "engine" / engine_name
+        bundled_binary = Path(__file__).resolve().parents[2] / "engine" / engine_name
         binary = os.getenv("MATICK_LLAMA_SERVER") or str(
-            Path(home) / "engine" / ("llama-server.exe" if os.name == "nt" else "llama-server")
+            personal_binary if personal_binary.is_file() else
+            (bundled_binary if bundled_binary.is_file() else personal_binary)
         )
         mode = os.getenv("MATICK_INFERENCE_BACKEND", "auto").strip().lower()
         if mode not in ("auto", "local", "external"):
