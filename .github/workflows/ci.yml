@@ -52,6 +52,10 @@ jobs:
         env:
           PYTHONPATH: cloud
         run: python -m unittest discover -s cloud/tests -p test_matick_mcp.py -v
+      - name: Ejecutar todas las regresiones Python Cloud (incluye pruebas REST nuevas)
+        env:
+          PYTHONPATH: cloud
+        run: python -m unittest discover -s cloud/tests -p 'test_*.py' -v
       - name: Pruebas del comparador de solo lectura
         env:
           PYTHONPATH: tools
