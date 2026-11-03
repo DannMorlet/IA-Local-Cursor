@@ -4,7 +4,7 @@
 #if BundleRoot == ""
   #error "Primero establece MATICK_PACKAGE_DIR al paquete previamente verificado."
 #endif
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.2.0"
 
 [Setup]
 AppId={{D3A69EE0-6D63-4326-9B45-723A00DCA110}
@@ -35,7 +35,7 @@ CloseApplications=yes
 RestartApplications=no
 CreateUninstallRegKey=yes
 OutputDir=.
-OutputBaseFilename=MatickStudioLM-v1.0.1-x64-Setup
+OutputBaseFilename=MatickStudioLM-v1.2.0-x64-Setup
 DisableWelcomePage=no
 DisableReadyPage=no
 DisableFinishedPage=no
