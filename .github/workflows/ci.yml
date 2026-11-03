@@ -103,9 +103,12 @@ jobs:
             $proc.Refresh()
             if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
           }
+      - name: Compilar motor llama.cpp CPU Windows x64 (MIT, SHA fijado)
+        shell: pwsh
+        run: .\\tools\\build_llama_cpu.ps1
       - name: Construir paquete portable ligero
         shell: pwsh
-        run: .\\tools\\package_portable.ps1 -ExePath .\\out\\build\\Release\\MatickStudioLM.exe -OutputDir .\\out\\dist
+        run: .\\tools\\package_portable.ps1 -ExePath .\\out\\build\\Release\\MatickStudioLM.exe -OutputDir .\\out\\dist -LlamaRuntimeDir .\\out\\llama-runtime
       - name: Incorporar Python embebido x64 verificado por SHA256
         shell: pwsh
         run: .\tools\prepare_embedded_runtime.ps1 -DistPath .\out\dist
