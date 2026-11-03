@@ -73,7 +73,8 @@ class OpenAICompatibleProvider:
     def configured(self) -> bool:
         return bool(self.base_url and self.model)
 
-    def respond(self, messages: list[dict[str, str]], params: dict | None = None) -> dict[str, object]:
+    def respond(self, messages: list[dict[str, str]], params: dict | None = None,
+                *, timeout: int = 25, llama_cpp: bool = False) -> dict[str, object]:
         if not self.configured:
             raise ProviderUnavailable("No hay un modelo configurado en Matick Cloud")
         # OpenAI-compatible no garantiza top_k, min_p, repeat_penalty ni reasoning.
@@ -82,7 +83,15 @@ class OpenAICompatibleProvider:
         forwarded = {key: options[key] for key in ("temperature", "top_p") if key in options}
         if "max_output_tokens" in options:
             forwarded["max_tokens"] = options["max_output_tokens"]
-        not_forwarded = sorted(set(options) - {"temperature", "top_p", "max_output_tokens"})
+        if llama_cpp:
+            # llama.cpp acepta estos parámetros. Nunca enviarlos a proveedores
+            # externos OpenAI-compatible que podrían ignorarlos.
+            for key in ("top_k", "min_p", "repeat_penalty"):
+                if key in options:
+                    forwarded[key] = options[key]
+        transmitted = set(forwarded) | ({"max_output_tokens"} if "max_tokens" in forwarded else set())
+        transmitted.discard("max_tokens")
+        not_forwarded = sorted(set(options) - transmitted)
         url = self.base_url + ("" if self.base_url.endswith("/v1") else "/v1") + "/chat/completions"
         payload = json.dumps({
             "model": self.model,
@@ -100,7 +109,7 @@ class OpenAICompatibleProvider:
         req = Request(url, data=payload, headers=headers, method="POST")
         started = time.perf_counter()
         try:
-            with self.opener.open(req, timeout=25) as response:
+            with self.opener.open(req, timeout=timeout) as response:
                 raw = response.read(128 * 1024 + 1)
             http_roundtrip_ms = round((time.perf_counter() - started) * 1000, 1)
         except (HTTPError, URLError, TimeoutError, OSError) as exc:
