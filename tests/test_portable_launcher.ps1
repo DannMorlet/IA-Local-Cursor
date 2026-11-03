@@ -56,7 +56,19 @@ public static class MatickLauncherProbe {
     }
 }
 '@
-    Add-Type -TypeDefinition $probeSource -OutputAssembly $probeExe -OutputType ConsoleApplication
+    # PowerShell 7 Add-Type does not support emitting ConsoleApplication assemblies.
+    # Use the Windows .NET Framework compiler available on the Windows runner.
+    $sourcePath = Join-Path $fixtureRoot 'MatickLauncherProbe.cs'
+    Set-Content -LiteralPath $sourcePath -Value $probeSource -Encoding UTF8
+    $compiler = Join-Path $env:WINDIR 'Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe'
+    if (-not (Test-Path -LiteralPath $compiler)) {
+        throw "Windows C# compiler unavailable: $compiler"
+    }
+    & $compiler /nologo /target:exe ("/out:$probeExe") $sourcePath
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $probeExe)) {
+        throw "Probe EXE compilation failed (exit=$LASTEXITCODE)"
+    }
+    $global:LASTEXITCODE = 0
     $oldProbe = $env:MATICK_LAUNCH_PROBE
     try {
         $env:MATICK_LAUNCH_PROBE = $probeResult
