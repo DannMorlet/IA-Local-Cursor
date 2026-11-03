@@ -150,3 +150,20 @@ El chat compartido https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba
 - [Microsoft Direct3D 12](https://learn.microsoft.com/en-us/windows/win32/direct3d12/directx-12-programming-guide): sin cambios en ruta DX12/GDI; requiere validación de hardware real.
 
 El chat compartido https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8 no se pudo recuperar (acceso deshabilitado); no se inventaron requisitos. Tamagochi overlay, pruebas de todos los botones, inferencia con pesos, RTX 5060, MCP real y benchmark de retención >=90% siguen pendientes.
+
+## Ejecución incremental: 18:39 CST: acciones de modelo exclusivas (2026-11-02)
+
+**Fallo de interfaz encontrado:** Guardar/Cargar/Descargar RAM permanecían activos durante la petición HTTP. Un doble clic podía iniciar dos cargas/descargas concurrentes; al descargar, la UI afirmaba que se liberó RAM/VRAM por recibir HTTP exitoso, sin comprobar si el motor todavía reportaba la instancia.
+
+**Cambio real:** `createExclusiveAction` impide solicitudes simultáneas desde esos tres botones, los deshabilita durante la operación y siempre los rehabilita tras éxito o error; `model-action-status` ofrece estado persistente con `role=status`, `aria-live=polite` y `aria-busy`. Tras descargar se vuelve a consultar inventario y `modelUnloadFeedback` distingue instancia todavía reportada, inventario fallido y ausencia de instancia; nunca afirma medición física de VRAM. Se conserva la confirmación previa de descarga. La carga sigue distinguiendo instancia declarada e inferencia no verificada.
+
+**Pruebas añadidas:** Node cubre doble clic, error/reintento y cuatro escenarios de descarga; Python comprueba integración estática de los controles. El resultado de GitHub Actions debe revisarse por ejecución. No son smoke tests de clic/teclado real ni miden memoria RTX 5060. Reversión: revertir commits de esta sección; no hay cambios de SQLite, API, instalador ni datos locales.
+
+**Comparación con investigación anterior (fuentes oficiales revisadas 2026-11-02):**
+- [TRL v1.10: DistillationTrainer estable](https://huggingface.co/docs/trl/v1.10.0/en/index): ahora describe un entrenador estable con JSD fragmentada y generación vLLM, frente a [v1.6 experimental](https://huggingface.co/docs/trl/v1.6.0/en/distillation_trainer). **Decisión nueva:** fijar una versión concreta de TRL antes de crear adaptador; la estabilidad de API no garantiza Windows nativo ni 8 GB.
+- [PEFT: LoftQ y QLoRA](https://huggingface.co/docs/peft/main/developer_guides/quantization): LoftQ intenta reducir error de cuantización al inicializar LoRA; es candidato a experimento de calidad, **no** una reducción del número de parámetros base. Sin implementar ni benchmark ≥90%.
+- [Unsloth: licencias](https://github.com/unslothai/unsloth): núcleo Apache-2.0, UI opcional AGPL-3.0; **sin cambio:** no copiar interfaz/assets, auditar archivo por archivo si se añade código modular.
+- [llama.cpp](https://github.com/ggml-org/llama.cpp): GGUF sigue siendo candidato a motor externo optativo; sin incorporación en esta revisión. Revisar binarios, versión, licencia y pruebas Windows antes de distribuir.
+- [Microsoft DRED](https://learn.microsoft.com/en-us/windows/win32/direct3d12/use-dred): diagnóstico DX12 pendiente; sin cambio ni prueba de GPU física.
+
+**Referencia adicional:** https://chatgpt.com/share/6ae8bd76-7e50-83e8-b56a-603f6e766ba8 sigue devolviendo acceso deshabilitado; no se extrajeron requisitos. No se modificó `C:\\IA\\Matick Studio LM`, modelos ni datos. Continúan SIN PROBAR: clic/teclado en Windows real, inferencia con pesos, RTX 5060, Tamagochi overlay, MCP real y calidad retenida ≥90%.
