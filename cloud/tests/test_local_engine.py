@@ -112,6 +112,16 @@ class LocalEngineTests(unittest.TestCase):
         with self.assertRaises(ModelOffline):
             self.engine.load(self.engine.models()[0]["key"], {})
 
+    def test_missing_runtime_explains_why_inference_is_unavailable(self):
+        self.exe.unlink()
+        engine = LocalLlamaEngine(self.home, executable=self.exe, enabled=True)
+        self.assertFalse(engine.configured)
+        self.assertIn("Falta llama-server", engine.reason)
+        self.assertEqual(len(engine.models()), 1)
+        with self.assertRaises(ModelOffline) as exc:
+            engine.load(engine.models()[0]["key"], {})
+        self.assertIn("Falta llama-server", str(exc.exception))
+
     def test_model_bytes_stay_in_place_after_unload(self):
         digest = self.file.read_bytes()
         key = self.engine.models()[0]["key"]
