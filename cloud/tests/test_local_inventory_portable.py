@@ -8,6 +8,30 @@ from matick_cloud.local_engine import LocalLlamaEngine
 
 
 class PortableInventoryTests(TestCase):
+    def test_disappearing_file_during_scan_preserves_healthy_gguf(self):
+        with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
+            root = Path(temp)
+            models_dir = root / "models"
+            models_dir.mkdir()
+            healthy = models_dir / "modelo sano.gguf"
+            healthy.write_bytes(b"GGUF-keep")
+            vanishing = models_dir / "modelo retirado.gguf"
+            vanishing.write_bytes(b"GGUF-temporary")
+            engine = LocalLlamaEngine(root, models_dir=models_dir)
+            original_is_file = Path.is_file
+
+            def simulate_removed(path):
+                if path == vanishing:
+                    raise FileNotFoundError("desaparecio durante el escaneo")
+                return original_is_file(path)
+
+            with patch.object(Path, "is_file", simulate_removed):
+                catalog = engine.models()
+
+            self.assertEqual([item["name"] for item in catalog], ["modelo sano"])
+            self.assertEqual(healthy.read_bytes(), b"GGUF-keep")
+            self.assertEqual(vanishing.read_bytes(), b"GGUF-temporary")
+
     def test_removed_and_inaccessible_gguf_do_not_hide_valid_models(self):
         with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
             home = Path(temp)
