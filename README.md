@@ -4,9 +4,9 @@
 
 > Estado: **Matick Studio LM Cloud v1.0 — software ejecutable y comprobable**. Incluye un bus HTTP autenticado con SQLite, un proveedor HTTP de inferencia configurable, un ejecutable nativo DirectX 12 que puede enviar mensajes y un paquete portable de archivos permitidos. **No** incluye pesos/modelos, despliegue cloud 24/7, conexión real con ChatGPT/Alexa/reloj, agente Codex que ejecuta código ni un instalador firmado.
 
-## Instalador Windows x64 con desinstalación segura (v1.0.1)
+## Instalador Windows x64 con desinstalación segura (v1.2.0)
 
-**Matick puede instalarse como programa independiente** desde un ZIP de GitHub Actions que incluye `MatickStudioLM-v1.0.1-x64-Setup.exe`. El instalador incluye Python 3.12.10 embebido (fuente oficial Python.org con SHA256 fijo), Matick Core y la interfaz nativa DirectX 12. **No requiere instalar Python, Node ni LM Studio** para abrirse y arrancar la API local.
+**Matick puede instalarse como programa independiente** desde un ZIP de GitHub Actions que incluye `MatickStudioLM-v1.2.0-x64-Setup.exe`. El instalador incluye Python 3.12.10 embebido (fuente oficial Python.org con SHA256 fijo), Matick Core y la interfaz nativa DirectX 12. **No requiere instalar Python, Node ni LM Studio** para abrirse y arrancar la API local.
 
 Instalación por usuario en `%LOCALAPPDATA%\Programs\Matick Studio LM Cloud`, con desinstalador registrado en *Aplicaciones instaladas*. Conserva bases SQLite, registros, modelos y tu desarrollo `C:\IA\Matick Studio LM`. **No incluye modelos entrenados:** el chat requiere configurar un proveedor de inferencia.
 
