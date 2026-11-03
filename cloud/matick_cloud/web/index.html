@@ -3,7 +3,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
 <title>Matick Studio LM · Work</title>
-<link rel="stylesheet" href="/app/style.css"></head>
+<link rel="stylesheet" href="/app/style.css">
+<link rel="stylesheet" href="/app/clare.css"></head>
 <body>
 <div class="shell">
   <div class="icon-rail" aria-label="Accesos de Matick">
@@ -12,6 +13,7 @@
     <button type="button" data-view="chat" class="rail-button" aria-label="Chat" title="Chat">▤</button>
     <button type="button" data-view="models" class="rail-button" aria-label="Modelos" title="Modelos">◈</button>
     <button type="button" data-view="tools" class="rail-button" aria-label="Herramientas MCP" title="Herramientas MCP">⚙</button>
+    <button type="button" id="clare-toggle" class="rail-button" aria-label="Ocultar Mini Clare" aria-pressed="true" title="Mini Clare">🐾</button>
     <span class="rail-spacer"></span>
     <div class="rail-account" title="Morlet">M</div>
   </div>
@@ -24,6 +26,7 @@
       <button class="nav" data-view="chat">▤ <span>Chat</span></button>
       <button class="nav" data-view="models">◈ <span>Modelos IA</span></button>
       <button class="nav" data-view="tools">⚙ <span>Herramientas MCP</span></button>
+      <button type="button" id="clare-sidebar" class="nav">🐾 <span>Mini Clare</span></button>
     </nav>
     <div class="nav-label second">RECIENTES</div>
     <div id="sidebar-tasks" class="sidebar-tasks"><p class="muted">Conecta para consultar tus tareas.</p></div>
@@ -127,6 +130,35 @@
   </aside>
 
 </div>
-<div id="login-dialog" class="modal hidden" role="dialog" aria-modal="true" aria-label="Conectar a Matick"><form id="login-form" class="login-card"><div class="eyebrow">MATICK STUDIO LM · V1</div><h2>Conecta tu espacio</h2><p>Introduce el token del rol <code>windows-dx12</code> o <code>matick-studio-lm</code>. No se guarda en el navegador ni en GitHub.</p><label class="field">Token del servidor <input id="token-input" type="password" autocomplete="off" minlength="16" required></label><button id="login-submit" class="primary block" type="submit">Entrar al espacio ↗</button><button id="cancel-login" class="ghost block" type="button">Cancelar</button><small id="login-error" role="status"></small></form></div>
+<aside id="clare-widget" class="clare-widget" role="region" aria-label="Mini Clare, compañera animada de Matick">
+  <div class="clare-header" id="clare-drag" aria-label="Arrastrar ventana de Mini Clare">
+    <div><strong>🐾 Mini Clare</strong><small>Tu compañera en Matick Cloud</small></div>
+    <button type="button" id="clare-close" aria-label="Ocultar a Clare" title="Ocultar">✕</button>
+  </div>
+  <div class="clare-stage">
+    <div id="clare-sprite" class="clare-sprite" role="img" aria-label="Mini Clare animada, con traje blanco y patitas"></div>
+    <div id="clare-fallback" class="clare-fallback" aria-hidden="true">🐾</div>
+  </div>
+  <p id="clare-message" class="clare-message" aria-live="polite">¡Hola! Aquí estoy para acompañarte. 🐾</p>
+  <div class="clare-commands" aria-label="Animaciones de Clare">
+    <button type="button" id="clare-wave" title="Saludar">👋 Saludar</button>
+    <button type="button" id="clare-jump" title="Brincar">✨ Brincar</button>
+    <button type="button" id="clare-walk" title="Moverse">🐾 Moverse</button>
+  </div>
+  <div class="clare-voice">
+    <label class="sr-only" for="clare-text">Texto que dirá Clare</label>
+    <textarea id="clare-text" rows="2" maxlength="500">Hola, soy Mini Clare. ¡Ya estoy dentro de Matick Studio LM Cloud!</textarea>
+    <button type="button" id="clare-speak" title="Clare dice el texto">🔊 Hablar</button>
+  </div>
+  <div class="clare-bottom">
+    <label for="clare-autoread"><input type="checkbox" id="clare-autoread"> Leer respuestas</label>
+    <button type="button" id="clare-stop-voice" title="Detener voz">■ Detener</button>
+    <button type="button" id="clare-import" title="Importar el atlas original desde Drive">📂 Importar sprite</button>
+    <input id="clare-file" type="file" accept="image/png" hidden>
+  </div>
+  <small id="clare-status" class="clare-status" role="status">Cargando recursos locales de Mini Clare…</small>
+</aside>
+<div id="login-dialog' class="modal hidden" role="dialog" aria-modal="true" aria-label="Conectar a Matick"><form id="login-form" class="login-card"><div class="eyebrow">MATICK STUDIO LM · V1</div><h2>Conecta tu espacio</h2><p>Introduce el token del rol <code>windows-dx12</code> o <code>matick-studio-lm</code>. No se guarda en el navegador ni en GitHub.</p><label class="field">Token del servidor <input id="token-input" type="password" autocomplete="off" minlength="16" required></label><button id="login-submit" class="primary block" type="submit">Entrar al espacio ↗</button><button id="cancel-login" class="ghost block" type="button">Cancelar</button><small id="login-error" role="status"></small></form></div>
 <div id="toast" role="status" class="toast hidden"></div>
-<script type="module" src="/app/app.js"></script></body></html>
+<script type="module" src="/app/app.js"></script>
+<script type="module" src="/app/clare.js"></script></body></html>

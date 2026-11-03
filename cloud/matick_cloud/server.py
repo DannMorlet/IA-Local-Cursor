@@ -172,7 +172,10 @@ class MatickHandler(BaseHTTPRequestHandler):
         web_routes = {"/app": ("index.html", "text/html; charset=utf-8"),
                       "/app/app.js": ("app.js", "text/javascript; charset=utf-8"),
                       "/app/chat_payload.mjs": ("chat_payload.mjs", "text/javascript; charset=utf-8"),
-                      "/app/style.css": ("style.css", "text/css; charset=utf-8")}
+                      "/app/style.css": ("style.css", "text/css; charset=utf-8"),
+                      "/app/clare.css": ("clare.css", "text/css; charset=utf-8"),
+                      "/app/clare.js": ("clare.js", "text/javascript; charset=utf-8"),
+                      "/app/clare_behavior.mjs": ("clare_behavior.mjs", "text/javascript; charset=utf-8")}
         if route.path in web_routes:
             filename, mime = web_routes[route.path]
             location = Path(__file__).parent / "web" / filename
@@ -189,7 +192,7 @@ class MatickHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Security-Policy",
                              "default-src 'none'; base-uri 'none'; form-action 'none'; "
                              "script-src 'self'; style-src 'self'; connect-src 'self'; "
-                             "img-src 'self'; frame-ancestors 'none'")
+                             "img-src 'self' blob:; frame-ancestors 'none'")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
