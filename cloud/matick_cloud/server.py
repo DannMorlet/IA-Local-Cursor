@@ -130,7 +130,7 @@ class MatickHTTPServer(ThreadingHTTPServer):
         # Un proveedor REST explícito conserva prioridad salvo selección local.
         self.use_local = self.local.enabled and (
             os.getenv("MATICK_INFERENCE_BACKEND", "auto").lower() == "local"
-            or not self.rest.configured
+            or not (self.rest.configured or self.provider.configured)
         )
         self.model_state = ModelState(store.path)
         self.tasks = TaskStore(store.path)
