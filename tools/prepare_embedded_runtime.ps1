@@ -11,8 +11,8 @@ if (-not (Test-Path (Join-Path $dist 'MatickStudioLM.exe'))) { throw 'Falta el p
 if (-not (Test-Path (Join-Path $dist 'cloud/matick_cloud/server.py'))) { throw 'Falta Matick Core.' }
 if (Test-Path $runtime) { throw 'No sobrescribir runtime existente.' }
 New-Item -ItemType Directory $runtime -Force | Out-Null
-$archive = Join-Path $env:RUNNER_TEMP "python-$pythonVersion-embed-amd64.zip"
-if (-not $env:RUNNER_TEMP) { $archive = Join-Path $env:TEMP "python-$pythonVersion-embed-amd64.zip" }
+$archiveRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
+$archive = Join-Path $archiveRoot ("matick-python-" + [guid]::NewGuid().ToString() + ".zip")
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri $url -OutFile $archive -UseBasicParsing

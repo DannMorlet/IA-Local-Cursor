@@ -276,7 +276,7 @@ void DashboardSetCloudStatus(bool healthy) {
     if (gApiStatus) {
         SetWindowTextW(gApiStatus, healthy
             ? L"API cloud: accesible /health"
-            : L"API cloud: desconectada");
+            : L"API: sin conexión. Revisa runtime, puerto 8787 y logs de Matick.");
         InvalidateRect(gApiStatus, nullptr, TRUE);
     }
 }
