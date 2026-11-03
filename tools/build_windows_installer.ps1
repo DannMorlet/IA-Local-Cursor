@@ -27,9 +27,9 @@ try {
 } finally {
   Remove-Item Env:MATICK_PACKAGE_DIR -ErrorAction SilentlyContinue
 }
-$setup=Join-Path $output 'MatickStudioLM-v1.0.1-x64-Setup.exe'
+$setup=Join-Path $output 'MatickStudioLM-v1.2.0-x64-Setup.exe'
 if(-not (Test-Path $setup)){throw 'Inno no produjo el archivo esperado.'}
 Copy-Item -LiteralPath (Join-Path $root 'docs\INSTALADOR_WINDOWS_X64.md') -Destination (Join-Path $output 'LEEME_INSTALADOR.md')
 $hash=(Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
-"$hash  MatickStudioLM-v1.0.1-x64-Setup.exe" | Set-Content -LiteralPath (Join-Path $output 'SHA256SUMS.txt') -Encoding ASCII
+"$hash  MatickStudioLM-v1.2.0-x64-Setup.exe" | Set-Content -LiteralPath (Join-Path $output 'SHA256SUMS.txt') -Encoding ASCII
 Write-Host "Instalador compilado, SHA256=$hash"
