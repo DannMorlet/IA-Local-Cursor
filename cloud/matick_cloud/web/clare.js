@@ -67,7 +67,7 @@ function setVisible(visible){
   toggle.setAttribute("aria-label",liveVisible?"Ocultar Mini Clare":"Mostrar Mini Clare");
   if(liveVisible) animate("waving");
 }
-toggle.addEventListener("click",()=>setVisible(!liveVisible));
+$("clare-toggle").addEventListener("click",()=>setVisible(!liveVisible));
 $("clare-sidebar").addEventListener("click",()=>setVisible(!liveVisible));
 $("clare-close").addEventListener("click",()=>setVisible(false));
 $("clare-wave").addEventListener("click",()=>{
