@@ -1,6 +1,6 @@
 # Matick Studio LM v1.2 · Inferencia local GGUF (fase de integración)
 
-Matick tiene un **controlador propio** de procesos de inferencia que ejecuta `llama-server` de [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp); el modelo no pasa por LM Studio ni Unsloth. El binario y los pesos **no están incluidos** en el instalador ligero por su tamaño y dependencias. Es una integración funcional de software, **no** una prueba de calidad/velocidad con pesos reales ni de CUDA en la RTX 5060.
+Matick tiene un **controlador propio** de procesos de inferencia que ejecuta `llama-server` de [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp); el modelo no pasa por LM Studio ni Unsloth. El instalador v1.2 incluye un **motor CPU x64** compilado desde llama.cpp oficial (código MIT y commit fijado), con su licencia. Los pesos GGUF y el backend CUDA **no están incluidos**: para usar tu RTX 5060 con aceleración de GPU se requiere un build CUDA compatible y una prueba física. Es una integración funcional de software, **no** una prueba de calidad/velocidad con pesos reales ni de CUDA en la RTX 5060.
 
 ## Ruta Windows 11 x64
 
