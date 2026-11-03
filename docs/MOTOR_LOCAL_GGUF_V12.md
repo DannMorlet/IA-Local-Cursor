@@ -6,7 +6,7 @@ Matick tiene un **controlador propio** de procesos de inferencia que ejecuta `ll
 
 La instalación de Matick y su carpeta de trabajo son conceptos distintos. El motor local buscará automáticamente:
 - Ejecutable: `C:\IA\Matick Studio LM\engine\llama-server.exe`
-- Archivos GGUF: `C:\IA\Matick Studio LM\models\` (puede contener subcarpetas)
+- Archivos GGUF: en cualquier subcarpeta de `C:\IA\Matick Studio LM\` (recomendado `models\`). Solo se descubren archivos `*.gguf`.
 - Registros de error: `%LOCALAPPDATA%\MatickStudioLM\logs\llama-inference.log`
 - Base de datos, proyectos y modelos anteriores: no se borran ni se migran automáticamente.
 
