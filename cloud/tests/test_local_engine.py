@@ -122,6 +122,27 @@ class LocalEngineTests(unittest.TestCase):
             engine.load(engine.models()[0]["key"], {})
         self.assertIn("Falta llama-server", str(exc.exception))
 
+    def test_catalog_skips_gguf_removed_between_scan_and_stat(self):
+        # El escaneo ya encontró dos rutas, pero una desaparece antes de stat().
+        from unittest.mock import patch
+
+        missing = self.home / "models" / "descarga-interrumpida.gguf"
+        key = self.engine._id(self.file)
+        missing_key = self.engine._id(missing)
+        original_stat = Path.stat
+
+        def stat_with_race(path, *args, **kwargs):
+            if path == missing:
+                raise FileNotFoundError("archivo movido durante el escaneo")
+            return original_stat(path, *args, **kwargs)
+
+        with patch.object(self.engine, "_inventory", return_value={
+            missing_key: missing, key: self.file,
+        }), patch.object(Path, "stat", stat_with_race):
+            models = self.engine.models()
+        self.assertEqual([item["key"] for item in models], [key])
+        self.assertEqual(models[0]["size_bytes"], len(self.file.read_bytes()))
+
     def test_model_bytes_stay_in_place_after_unload(self):
         digest = self.file.read_bytes()
         key = self.engine.models()[0]["key"]
