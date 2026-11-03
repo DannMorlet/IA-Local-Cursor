@@ -1,0 +1,16 @@
+name: Portable launcher checks
+on:
+  pull_request:
+    paths:
+      - 'tools/start_matick_portable.ps1'
+      - 'tests/test_portable_launcher.ps1'
+      - '.github/workflows/portable-launcher-check.yml'
+  workflow_dispatch:
+jobs:
+  powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate launcher syntax and asset working directory
+        shell: pwsh
+        run: ./tests/test_portable_launcher.ps1
