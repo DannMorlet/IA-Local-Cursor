@@ -1,4 +1,4 @@
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent, resetForAuthenticatedSession} from "./chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent, resetForAuthenticatedSession, modelUnloadFeedback, createExclusiveAction} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
 const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0, inventoryRequestId:0, taskRequestId:0, loginRequestId:0 };
 function resetChatControls() {
@@ -220,27 +220,50 @@ function formValues(){
   if(!id)throw new Error("Selecciona un modelo primero");
   return {model:id,generation,load};
 }
+const modelActionIds=["save-model","load-model","unload-model"];
+const exclusiveModelAction=createExclusiveAction(busy=>{
+  for(const id of modelActionIds) $(id).disabled=busy;
+  $("model-action-status").setAttribute("aria-busy",String(busy));
+});
 async function runModel(action){
-  try{
-    const config=formValues();
-    if(action==="save"){
-      await api("/v1/models/settings",config);
-      selectModel(config.model);
-      showMessage("Parámetros del modelo guardados.");
-    }else if(action==="load"){
-      await api("/v1/models/settings",config);
-      await api("/v1/models/load",{model:config.model,params:config.load});
-      await refreshModels();
-      showMessage(modelLoadFeedback(state,config.model));
-    }else if(action==="unload"){
-      const instance=state.loadedInstances[0]?.id;
-      if(!instance)throw new Error("Selecciona una instancia que esté cargada");
-      if(!confirm("¿Liberar la instancia "+instance+" de la memoria?"))return;
-      await api("/v1/models/unload",{instance_id:instance,model:config.model});
-      showMessage("Se descargó la instancia de la RAM/VRAM.");
-      await refreshModels();
+  return exclusiveModelAction(async()=>{
+    $("model-action-status").textContent={
+      save:"Guardando parámetros…", load:"Solicitando carga y verificando el inventario…",
+      unload:"Comprobando instancia para descargar…"
+    }[action]||"Procesando…";
+    try{
+      const config=formValues();
+      if(action==="save"){
+        await api("/v1/models/settings",config);
+        selectModel(config.model);
+        $("model-action-status").textContent="Parámetros guardados.";
+        showMessage("Parámetros del modelo guardados.");
+      }else if(action==="load"){
+        await api("/v1/models/settings",config);
+        await api("/v1/models/load",{model:config.model,params:config.load});
+        await refreshModels();
+        const feedback=modelLoadFeedback(state,config.model);
+        $("model-action-status").textContent=feedback;
+        showMessage(feedback);
+      }else if(action==="unload"){
+        const instance=state.loadedInstances[0]?.id;
+        if(!instance)throw new Error("Selecciona una instancia que esté cargada");
+        if(!confirm("¿Liberar la instancia "+instance+" de la memoria?")){
+          $("model-action-status").textContent="Descarga cancelada.";
+          return;
+        }
+        $("model-action-status").textContent="Solicitando descarga y verificando inventario…";
+        await api("/v1/models/unload",{instance_id:instance,model:config.model});
+        await refreshModels();
+        const feedback=modelUnloadFeedback(state,config.model,instance);
+        $("model-action-status").textContent=feedback;
+        showMessage(feedback);
+      }
+    }catch(err){
+      $("model-action-status").textContent="Error: "+err.message+" Puedes reintentar.";
+      showMessage(err.message);
     }
-  }catch(err){showMessage(err.message);}
+  });
 }
 $("save-model").addEventListener("click",()=>runModel("save"));
 $("load-model").addEventListener("click",()=>runModel("load"));
