@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import math
 import os
+from contextlib import closing
 from pathlib import Path
 import re
 import sqlite3
@@ -260,11 +261,11 @@ class ModelState:
     def __init__(self, path):
         self.path = Path(path)
         self.lock = threading.RLock()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("CREATE TABLE IF NOT EXISTS model_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
 
     def get(self):
-        with self.lock, sqlite3.connect(self.path) as db:
+        with self.lock, closing(sqlite3.connect(self.path)) as db, db:
             value = db.execute("SELECT value FROM model_state WHERE key='active'").fetchone()
         return json.loads(value[0]) if value else {"model": None, "generation": {}, "load": {}}
 
@@ -283,7 +284,7 @@ class ModelState:
         # BEGIN IMMEDIATE serializes read-modify-write across *different*
         # ModelState instances/processes, not just threads sharing self.lock.
         # Without it, concurrent partial updates silently overwrite fields.
-        with self.lock, sqlite3.connect(self.path, timeout=10) as db:
+        with self.lock, closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT value FROM model_state WHERE key='active'").fetchone()
             previous = json.loads(row[0]) if row else {

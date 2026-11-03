@@ -17,7 +17,12 @@ std::wstring InstalledRoot() {
     if (!len || len >= buffer.size()) return {};
     std::wstring exe(buffer.data(), len);
     const auto slash = exe.find_last_of(L"\\/");
-    return slash == std::wstring::npos ? std::wstring() : exe.substr(0, slash);
+    if (slash == std::wstring::npos) return {};
+    const auto root = exe.substr(0, slash);
+    // Instalación conservadora: recursos nuevos en App, datos y fuentes intactos.
+    if (IsRegularFile(root + L"\\App\\runtime\\python.exe") &&
+        IsRegularFile(root + L"\\App\\cloud\\matick_cloud\\__main__.py")) return root + L"\\App";
+    return root;
 }
 
 std::wstring UserDataPath() {
@@ -47,6 +52,7 @@ std::wstring RandomToken() {
 }
 
 void MatickBackend::StartIfBundled() {
+    error_.clear();
     // Un usuario puede elegir expresamente su propia nube. Respetar el entorno.
     if (GetEnvironmentVariableW(L"MATICK_CLOUD_URL", nullptr, 0) != 0 ||
         GetEnvironmentVariableW(L"MATICK_TOKEN", nullptr, 0) != 0 ||
@@ -59,11 +65,13 @@ void MatickBackend::StartIfBundled() {
     const auto python = root + L"\\runtime\\python.exe";
     const auto server = root + L"\\cloud\\matick_cloud\\__main__.py";
     if (!IsRegularFile(python) || !IsRegularFile(server)) {
+        error_ = L"Falta runtime\\python.exe o el paquete cloud. Reinstala el paquete completo. Consulta %LOCALAPPDATA%\\MatickStudioLM\\logs.";
         MatickLog(L"BACKEND_EMBEDDED_RUNTIME_NOT_INSTALLED");
         return;
     }
     const auto userdata = UserDataPath();
     if (userdata.empty()) {
+        error_ = L"No se pudo localizar LOCALAPPDATA. Consulta %LOCALAPPDATA%\\MatickStudioLM\\logs.";
         MatickLog(L"BACKEND_USER_DATA_PATH_UNAVAILABLE");
         return;
     }
@@ -73,6 +81,7 @@ void MatickBackend::StartIfBundled() {
     CreateDirectoryW(logs.c_str(), nullptr);
     const auto token = RandomToken();
     if (token.empty()) {
+        error_ = L"No se pudo crear la credencial local. Consulta %LOCALAPPDATA%\\MatickStudioLM\\logs.";
         MatickLog(L"BACKEND_TOKEN_GENERATION_FAILED");
         return;
     }
@@ -106,22 +115,26 @@ void MatickBackend::StartIfBundled() {
     limit.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     if (!job_ || !SetInformationJobObject(job_, JobObjectExtendedLimitInformation,
         &limit, sizeof(limit))) {
+        error_ = L"No se pudo aislar el backend. Consulta %LOCALAPPDATA%\\MatickStudioLM\\logs.";
         MatickLog(L"BACKEND_JOB_CREATE_FAILED", HRESULT_FROM_WIN32(GetLastError()));
         Stop();
     } else if (!CreateProcessW(python.c_str(), command.data(), nullptr, nullptr, TRUE,
         CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, root.c_str(), &start, &proc)) {
+        error_ = L"No se pudo iniciar Python. Revisa runtime y permisos. Consulta %LOCALAPPDATA%\\MatickStudioLM\\logs.";
         MatickLog(L"BACKEND_PROCESS_CREATE_FAILED", HRESULT_FROM_WIN32(GetLastError()));
         Stop();
     } else {
         if (!AssignProcessToJobObject(job_, proc.hProcess)) {
-            MatickLog(L"BACKEND_JOB_ATTACH_FAILED", HRESULT_FROM_WIN32(GetLastError()));
+            error_ = L"No se pudo asociar el backend a su proceso principal. Consulta %LOCALAPPDATA%\\MatickStudioLM\\logs.";
+        MatickLog(L"BACKEND_JOB_ATTACH_FAILED", HRESULT_FROM_WIN32(GetLastError()));
             TerminateProcess(proc.hProcess, 1); // Solo el proceso que acabamos de crear.
             CloseHandle(proc.hProcess);
             Stop();
         } else {
             process_ = proc.hProcess;
             if (ResumeThread(proc.hThread) == DWORD(-1)) {
-                MatickLog(L"BACKEND_RESUME_FAILED", HRESULT_FROM_WIN32(GetLastError()));
+                error_ = L"No se pudo continuar el backend. Consulta %LOCALAPPDATA%\\MatickStudioLM\\logs.";
+        MatickLog(L"BACKEND_RESUME_FAILED", HRESULT_FROM_WIN32(GetLastError()));
                 Stop();
             } else {
                 MatickLog(L"BACKEND_STARTED_ISOLATED");
@@ -137,4 +150,8 @@ void MatickBackend::Stop() {
     // Cerrar el Job termina solo el backend hijo, nunca servidores ajenos.
     if (job_) { CloseHandle(job_); job_ = nullptr; }
     if (process_) { CloseHandle(process_); process_ = nullptr; }
+}
+
+bool MatickBackend::IsAlive() const {
+    return !process_ || WaitForSingleObject(process_, 0) == WAIT_TIMEOUT;
 }

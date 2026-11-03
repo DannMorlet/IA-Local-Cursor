@@ -263,7 +263,10 @@ bool IsCloudHealthy(const std::wstring& base) {
             if (WinHttpQueryHeaders(
                     request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
                     WINHTTP_HEADER_NAME_BY_INDEX, &status, &bytes, WINHTTP_NO_HEADER_INDEX)) {
-                healthy = status == 200;
+                char body[4097] = {};
+                DWORD received = 0;
+                healthy = status == 200 && WinHttpReadData(request, body, 4096, &received)
+                    && std::string(body, received).find("matick-studio-lm-cloud") != std::string::npos;
             }
         }
     }
@@ -401,6 +404,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     // cuando el servidor local comienza a iniciar (sin Python global).
     MatickBackend backend;
     backend.StartIfBundled();
+    if (!backend.Error().empty()) DashboardSetChatResponse(backend.Error(), false);
 
     const bool forceGdi = MatickPreferGDI();
     if (forceGdi) {
@@ -425,10 +429,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     SetTimer(window, 1, 33, nullptr);
 
     std::atomic<bool> running{true};
-    std::thread monitor([&running, window]() {
+    std::thread monitor([&running, &backend, window]() {
         const std::wstring address = CloudURL();
         while (running.load()) {
-            const bool healthy = IsCloudHealthy(address);
+            const bool healthy = backend.Error().empty() && backend.IsAlive() && IsCloudHealthy(address);
             PostMessageW(window, kHealthMessage, healthy ? 1 : 0, 0);
             for (int i = 0; i < 50 && running.load(); ++i) {
                 Sleep(100);

@@ -109,6 +109,12 @@ jobs:
       - name: Incorporar Python embebido x64 verificado por SHA256
         shell: pwsh
         run: .\tools\prepare_embedded_runtime.ps1 -DistPath .\out\dist
+      - name: Prueba funcional HTTP portable desde ruta con espacios
+        shell: pwsh
+        run: .\tools\test_portable_http.ps1 -DistPath .\out\dist
+      - name: Regresión del script portable
+        shell: pwsh
+        run: .\tests\test_portable_launcher.ps1
       - name: Compilar instalador Windows x64 con desinstalador
         shell: pwsh
         run: .\tools\build_windows_installer.ps1

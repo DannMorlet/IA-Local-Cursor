@@ -8,6 +8,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+from contextlib import closing
 from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -36,7 +37,7 @@ class EventStore:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS events ("
                 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -58,7 +59,7 @@ class EventStore:
 
     def publish(self, source: str, target: str, kind: str, payload: dict[str, Any]) -> int:
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             result = db.execute(
                 "INSERT INTO events(created_at,source,target,kind,payload) "
                 "VALUES(?,?,?,?,?)",
@@ -67,7 +68,7 @@ class EventStore:
             return int(result.lastrowid)
 
     def inbox(self, actor: str, after: int, limit: int) -> list[dict[str, Any]]:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             rows = db.execute(
                 "SELECT id,created_at,source,target,kind,payload "
                 "FROM events WHERE target=? AND id>? ORDER BY id LIMIT ?",

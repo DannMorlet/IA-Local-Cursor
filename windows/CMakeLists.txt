@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(MatickStudioLM VERSION 1.2.0 LANGUAGES CXX)
+project(MatickStudioLM VERSION 1.2.0 LANGUAGES CXX RC)
 
 if(NOT WIN32)
     message(FATAL_ERROR "Matick Studio LM DirectX 12 requiere Windows y Windows SDK.")
@@ -15,3 +15,8 @@ target_link_libraries(MatickStudioLM PRIVATE d3d12 dxgi dxguid winhttp bcrypt)
 if(MSVC)
     target_compile_options(MatickStudioLM PRIVATE /W4 /EHsc /utf-8)
 endif()
+
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message(FATAL_ERROR "Se requiere Windows x64.")
+endif()
+target_sources(MatickStudioLM PRIVATE MatickStudioLM.rc)
