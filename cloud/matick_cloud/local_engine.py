@@ -50,7 +50,9 @@ class LocalLlamaEngine:
         mode = os.getenv("MATICK_INFERENCE_BACKEND", "auto").strip().lower()
         if mode not in ("auto", "local", "external"):
             raise ValueError("MATICK_INFERENCE_BACKEND debe ser auto, local o external")
-        enabled = mode == "local" or (mode == "auto" and Path(binary).is_file())
+        # Mostrar el estado de instalación del motor también si falta el binario,
+        # en lugar de ocultarlo detrás de "REST v1 no configurado".
+        enabled = mode != "external"
         return cls(home, os.getenv("MATICK_LOCAL_MODELS_DIR"), binary, enabled=enabled)
 
     @property
