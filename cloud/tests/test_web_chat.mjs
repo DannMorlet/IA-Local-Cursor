@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent, resetForAuthenticatedSession} from "../matick_cloud/web/chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent, resetForAuthenticatedSession, modelUnloadFeedback, createExclusiveAction} from "../matick_cloud/web/chat_payload.mjs";
 
 test("el proveedor alternativo aparece sin fingir inferencia verificada", () => {
   const inventory = {provider: "openai-compatible", configured: true, connected: false,
@@ -279,4 +279,40 @@ test("un refresco viejo de tareas no puede pintar resultados después de reconec
   if(inventoryRequestIsCurrent(currentRequest,state.taskRequestId,currentToken,currentToken))
     state.tasks=[{id:2,title:"tarea de token-b"}];
   assert.equal(state.tasks[0].id,2);
+});
+
+test("descarga de instancia distingue solicitud de inventario y RAM física", () => {
+  const base={provider:"rest-v1",inventoryFresh:true,
+    models:[{key:"modelo-a",loaded_instances:[{id:"instancia-a"}]}]};
+  assert.match(modelUnloadFeedback(base,"modelo-a","instancia-a"),/todavía reporta/);
+  assert.match(modelUnloadFeedback({...base,models:[{key:"modelo-a",loaded_instances:[]}]},
+    "modelo-a","instancia-a"),/RAM\/VRAM física sin medir/);
+  assert.match(modelUnloadFeedback({...base,inventoryFresh:false},"modelo-a","instancia-a"),
+    /no se pudo verificar/);
+  assert.match(modelUnloadFeedback(base,"modelo-desconocido","instancia-a"),/no aparece/);
+});
+
+test("doble clic no duplica una carga pendiente y habilita reintento", async () => {
+  const transitions=[];
+  const execute=createExclusiveAction(busy=>transitions.push(busy));
+  let release;
+  const pending=new Promise(resolve=>{release=resolve;});
+  let calls=0;
+  const first=execute(async()=>{calls++;await pending;});
+  assert.equal(await execute(async()=>{calls++;}),false);
+  assert.equal(calls,1);
+  release();
+  assert.equal(await first,true);
+  assert.equal(await execute(async()=>{calls++;}),true);
+  assert.equal(calls,2);
+  assert.deepEqual(transitions,[true,false,true,false]);
+});
+
+test("fallo de carga libera el bloqueo y permite reintentar", async () => {
+  const transitions=[];
+  const execute=createExclusiveAction(busy=>transitions.push(busy));
+  await assert.rejects(execute(async()=>{throw new Error("motor sin memoria");}),
+    /motor sin memoria/);
+  assert.equal(await execute(async()=>{}),true);
+  assert.deepEqual(transitions,[true,false,true,false]);
 });
