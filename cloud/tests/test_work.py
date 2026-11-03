@@ -1,5 +1,6 @@
 """Verifica panel web estático y tareas persistentes sin navegador externo."""
 import json
+from html.parser import HTMLParser
 from pathlib import Path
 import tempfile
 import threading
@@ -70,10 +71,72 @@ class WorkTests(unittest.TestCase):
         self.assertIn('getElementById(id)', source)
         self.assertIn('$("home-form").addEventListener("submit"', source)
         self.assertIn('$("chat-form").requestSubmit()', source)
-        self.assertIn('$("home-model-chip").textContent=id', source)
+        self.assertIn('$("home-model-chip").textContent=state.provider==="rest-v1"', source)
+        self.assertIn('id+" · Falta cargar"', source)
+        self.assertIn('id+" · Inferencia por verificar"', source)
+        self.assertIn('modelLoadFeedback(state,config.model)', source)
+        self.assertIn('id="model-action-status" class="hint" role="status"', markup)
+        self.assertIn('createExclusiveAction(busy=>', source)
+        self.assertIn('for(const id of modelActionIds) $(id).disabled=busy;', source)
+        self.assertIn('modelUnloadFeedback(state,config.model,instance)', source)
+        self.assertNotIn('showMessage("Se descargó la instancia de la RAM/VRAM.")', source)
+        self.assertNotIn('showMessage("Modelo cargado en el motor conectado.")', source)
         self.assertIn('querySelectorAll(".nav, .rail-button, .mode-tab")', source)
         self.assertNotIn('fonts.googleapis.com', markup)
         self.assertNotIn('https://', markup)
+
+    def test_buttons_link_to_actual_handlers(self):
+        class Buttons(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.buttons = []
+                self.ids = []
+            def handle_starttag(self, tag, attrs):
+                a = dict(attrs)
+                if a.get("id"):
+                    self.ids.append(a["id"])
+                if tag == "button":
+                    self.buttons.append(a)
+        _, html = self.call("/app")
+        _, js = self.call("/app/app.js")
+        markup, source = html.decode(), js.decode()
+        parsed = Buttons()
+        parsed.feed(markup)
+        self.assertEqual(len(parsed.ids), len(set(parsed.ids)))
+        for button in parsed.buttons:
+            if button.get("data-go") or button.get("data-view"):
+                name = button.get("data-go") or button.get("data-view")
+                self.assertIn('id="view-' + name + '"', markup)
+            elif button.get("type") == "submit":
+                self.assertIn('addEventListener("submit"', source)
+            elif button.get("id"):
+                self.assertIn('$("' + button["id"] + '").addEventListener', source)
+            else:
+                self.fail("Botón sin acción explícita: " + str(button))
+        self.assertIn('id="cancel-login"', markup)
+        self.assertIn('data-focus="task-board"', markup)
+        self.assertIn('id="home-send"', markup)
+        self.assertIn("selectedModelReadiness()", source)
+        self.assertIn("const requestId=++state.inventoryRequestId;", source)
+        self.assertIn("inventoryRequestIsCurrent(requestId,state.inventoryRequestId,requestToken,state.token)", source)
+        # Login cancelado o fallido nunca invalida una sesión ya autenticada.
+        self.assertIn('id="login-submit"', markup)
+        self.assertIn('api("/v1/capabilities",undefined,token)', source)
+        self.assertIn('loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim())', source)
+        self.assertIn('state.loginRequestId++;', source)
+        self.assertNotIn('catch(err) {state.token="";', source)
+        # La UI habilita un chat nuevo tras limpiar/cambiar de modelo y protege el finally tardío.
+        self.assertIn("function resetChatControls()", source)
+        self.assertIn("applyChatResultIfCurrent(requestEpoch,state.chatEpoch,resetChatControls)", source)
+        self.assertIn('resetChatControls(); // Nueva conversación usable', source)
+        self.assertIn('resetChatControls(); // El chat anterior ya no debe bloquear', source)
+        # La prevalidación UTF-8 sucede antes de borrar el borrador y agregar el turno.
+        submit = source.split('$("chat-form").addEventListener("submit",async e=>{', 1)[1].split(
+            '$("prompt").addEventListener("keydown"', 1)[0]
+        self.assertLess(submit.index('request=buildChatPayload([...state.chat'),
+                        submit.index('$("prompt").value="";state.chat.push'))
+        self.assertIn('showMessage("No se pudo enviar: "+err.message)', submit)
+        self.assertIn('$("prompt").focus(); // Conservar el texto', submit)
 
     def test_create_and_update_tasks(self):
         _, data = self.call("/v1/tasks")

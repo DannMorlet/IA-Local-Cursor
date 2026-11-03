@@ -57,3 +57,85 @@ export function applyChatResultIfCurrent(requestEpoch, currentEpoch, apply) {
   apply();
   return true;
 }
+
+/** Estado del modelo: cargado no significa que ya haya respondido por inferencia. */
+export function modelReadiness({token="", inventoryFresh=false, selected="",
+    provider="", models=[]}={}) {
+  if(!token) return {ok:false, reason:"Conecta tu servidor Matick antes de enviar."};
+  if(!inventoryFresh) return {ok:false, reason:"Actualiza el catálogo de modelos para comprobar su disponibilidad."};
+  if(!selected) return {ok:false, reason:"Selecciona un modelo en Modelos IA."};
+  const item=Array.isArray(models) ? models.find(m=>m?.key===selected) : null;
+  if(!item) return {ok:false, reason:"El modelo elegido ya no aparece en el catálogo. Actualiza Modelos IA."};
+  if(provider==="rest-v1" && (!Array.isArray(item.loaded_instances) || !item.loaded_instances.length))
+    return {ok:false, reason:"Modelo elegido pero NO cargado en RAM/VRAM. En Modelos IA pulsa Cargar."};
+  return {ok:true, verifiedInference:false};
+}
+
+/** La aceptación de /models/load no demuestra que el modelo esté en memoria. */
+export function modelLoadFeedback({provider="", inventoryFresh=false, models=[]}={}, model="") {
+  if(!inventoryFresh) return "Carga solicitada, pero no se pudo comprobar el estado del motor.";
+  const item=Array.isArray(models) ? models.find(row=>row?.key===model) : null;
+  if(!item) return "Carga solicitada; el modelo no aparece en el catálogo actualizado.";
+  if(provider!=="rest-v1")
+    return "Solicitud enviada al proveedor; inferencia todavía sin verificar.";
+  return Array.isArray(item.loaded_instances) && item.loaded_instances.length ?
+    "Instancia declarada cargada por REST v1; inferencia aún sin verificar." :
+    "Carga solicitada; REST v1 todavía no confirma una instancia cargada.";
+}
+
+
+/** Evita que respuestas tardías del catálogo sustituyan un inventario más nuevo. */
+export function inventoryRequestIsCurrent(requestId, activeId, requestToken, activeToken) {
+  return requestId === activeId && Boolean(requestToken) && requestToken === activeToken;
+}
+
+
+/** Solo la autenticación más reciente y no cancelada puede activar una sesión. */
+export function loginAttemptIsCurrent(requestId, activeId, requestToken, enteredToken) {
+  return requestId === activeId && Boolean(requestToken) && requestToken === enteredToken;
+}
+
+/** Al autenticar una sesión nueva, nunca heredar estado de otra cuenta/token. */
+export function resetForAuthenticatedSession(state) {
+  state.chatEpoch++;
+  state.inventoryRequestId++;
+  state.taskRequestId++;
+  state.chat=[];
+  state.previousResponseId=null;
+  state.conversationModel=null;
+  state.models=[];
+  state.provider="";
+  state.inventoryFresh=false;
+  state.selected="";
+  state.loadedInstances=[];
+  state.tasks=[];
+}
+
+/** La aceptación de /models/unload tampoco prueba liberación de VRAM física. */
+export function modelUnloadFeedback({provider="", inventoryFresh=false, models=[]}={}, model="", instanceId="") {
+  if(!inventoryFresh) return "Descarga solicitada, pero no se pudo verificar el inventario.";
+  const item=Array.isArray(models) ? models.find(row=>row?.key===model) : null;
+  if(!item) return "Descarga solicitada; el modelo ya no aparece en el catálogo.";
+  if(provider!=="rest-v1") return "Solicitud enviada; el proveedor no confirma la memoria liberada.";
+  const instances=Array.isArray(item.loaded_instances) ? item.loaded_instances : [];
+  return instances.some(row=>row?.id===instanceId) ?
+    "Descarga solicitada; REST v1 todavía reporta la instancia cargada." :
+    "REST v1 ya no reporta la instancia; RAM/VRAM física sin medir.";
+}
+
+/** Serializa acciones de modelos para impedir cargas/descargas duplicadas por doble clic. */
+export function createExclusiveAction(onBusyChange=()=>{}) {
+  let busy=false;
+  return async operation=>{
+    if(busy) return false;
+    busy=true;
+    try {
+      onBusyChange(true);
+      await operation();
+      return true;
+    } finally {
+      busy=false;
+      onBusyChange(false);
+    }
+  };
+}

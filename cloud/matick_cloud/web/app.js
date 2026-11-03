@@ -1,16 +1,20 @@
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation} from "./chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent, resetForAuthenticatedSession, modelUnloadFeedback, createExclusiveAction} from "./chat_payload.mjs";
 const $ = id => document.getElementById(id);
-const state = { token:"", models:[], selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0 };
+const state = { token:"", models:[], provider:"", inventoryFresh:false, selected:"", loadedInstances:[], tasks:[], view:"workspace", chat:[], previousResponseId:null, conversationModel:null, chatEpoch:0, inventoryRequestId:0, taskRequestId:0, loginRequestId:0 };
+function resetChatControls() {
+  $("send-chat").disabled=false;
+  $("home-send").disabled=false;
+}
 function showMessage(message) {
   $("toast").textContent = String(message);
   $("toast").classList.remove("hidden");
   window.clearTimeout(showMessage.timer);
   showMessage.timer = setTimeout(()=>$("toast").classList.add("hidden"),5500);
 }
-async function api(path, body=undefined) {
-  if (!state.token) throw new Error("Conecta un token válido");
+async function api(path, body=undefined, authToken=state.token) {
+  if (!authToken) throw new Error("Conecta un token válido");
   const options = { method:body===undefined?"GET":"POST",
-    headers:{Authorization:"Bearer "+state.token, Accept:"application/json"} };
+    headers:{Authorization:"Bearer "+authToken, Accept:"application/json"} };
   if (body!==undefined) { options.headers["Content-Type"]="application/json"; options.body=JSON.stringify(body); }
   let response;
   try {response=await fetch(path,options);} catch {throw new Error("El servidor Matick no está disponible");}
@@ -32,41 +36,124 @@ function view(name) {
   $("view-name").textContent={workspace:"Trabajo",chat:"Chat",models:"Modelos IA",tools:"Herramientas MCP"}[name];
 }
 document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>view(button.dataset.view)));
-document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("click",()=>view(button.dataset.go)));
-$("connect-button").addEventListener("click",()=>{$("login-dialog").classList.remove("hidden");$("token-input").focus();});
+document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("click",()=>{
+  view(button.dataset.go);
+  if(button.dataset.focus==="task-board")
+    $("task-board").scrollIntoView({behavior:"smooth",block:"center"});
+}));
+$("connect-button").addEventListener("click",()=>{
+  $("login-dialog").classList.remove("hidden");
+  $("token-input").focus();
+});
+function closeLogin() {
+  // Cancelar invalida respuestas de autenticación pendientes.
+  state.loginRequestId++;
+  $("login-submit").disabled=false;
+  $("login-dialog").classList.add("hidden");
+  $("token-input").value="";
+  $("login-error").textContent="";
+}
+$("cancel-login").addEventListener("click", closeLogin);
+$("token-input").addEventListener("input",()=>{
+  // Editar el token también invalida la solicitud anterior.
+  state.loginRequestId++;
+  $("login-submit").disabled=false;
+  $("login-error").textContent="";
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape" && !$("login-dialog").classList.contains("hidden"))
+    closeLogin();
+});
 $("login-form").addEventListener("submit", async e=>{
   e.preventDefault();
   const token=$("token-input").value.trim();
   if(token.length<16){$("login-error").textContent="Token demasiado corto";return;}
-  state.token=token;
+  const requestId=++state.loginRequestId;
+  $("login-submit").disabled=true;
+  $("login-error").textContent="Verificando acceso…";
   try {
-    const capabilities=await api("/v1/capabilities");
-    $("login-dialog").classList.add("hidden");
-    $("token-input").value="";
-    $("login-error").textContent="";
+    // No sustituir la sesión vigente hasta comprobar las credenciales nuevas.
+    const capabilities=await api("/v1/capabilities",undefined,token);
+    if(!loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim()))return;
+    // A token distinto no puede heredar historial, modelos o respuestas de la sesión previa.
+    resetForAuthenticatedSession(state);
+    resetChatControls();
+    state.token=token;
+    closeLogin();
+    empty($("conversation"),"Sesión nueva. Selecciona un modelo para comenzar.");
+    $("chat-stats").textContent="Sesión nueva sin historial";
+    $("model-chip").textContent="Modelo sin seleccionar";
+    $("home-model-chip").textContent="Comprobando modelos de la nueva sesión…";
+    $("model-id").value="";
+    $("model-current").textContent="Sin modelo";
+    $("state-model").textContent="Ninguno";
+    empty($("task-board"),"Cargando trabajos de la nueva sesión…");
+    empty($("sidebar-tasks"),"Cargando trabajos…");
     $("status").textContent="API autenticada";
     $("connected-dot").classList.add("connected");
     $("state-api").textContent="Conectado";
     $("state-engine").textContent=capabilities.rest_v1?.configured?"REST v1 configurado":"No configurado";
     await Promise.all([refreshModels(),refreshTasks()]);
-  } catch(err) {state.token="";$("login-error").textContent=err.message;}
+  } catch(err) {
+    if(loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim()))
+      $("login-error").textContent=err.message;
+  } finally {
+    if(loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim()))
+      $("login-submit").disabled=false;
+  }
 });
 function empty(element,message) {element.replaceChildren();const p=document.createElement("div");p.className="empty";p.textContent=message;element.append(p);}
 async function refreshModels(){
+  const requestId=++state.inventoryRequestId;
+  const requestToken=state.token;
+  state.inventoryFresh=false;
+  $("home-model-chip").textContent="Comprobando estado del modelo…";
   try {
     const [inventory,settings]=await Promise.all([api("/v1/models"),api("/v1/models/settings")]);
+    if(!inventoryRequestIsCurrent(requestId,state.inventoryRequestId,requestToken,state.token)) return false;
     state.models=Array.isArray(inventory.models)?inventory.models:[];
+    state.provider=inventory.provider||"";
+    state.inventoryFresh=true;
     const presentation=modelInventoryPresentation(inventory,settings);
     $("state-engine").textContent=presentation.engineStatus;
     $("model-count").textContent=state.models.length+" modelos";
-    if(presentation.selectedModel) selectModel(presentation.selectedModel,true);
+    if(presentation.selectedModel && state.models.some(m=>m.key===presentation.selectedModel))
+      selectModel(presentation.selectedModel,true);
+    else clearModelSelection();
     setSavedSettings(settings);
     renderModels();
-  }catch(err){empty($("model-list"),"No se pudo consultar modelos: "+err.message);}
+    return true;
+  }catch(err){
+    if(!inventoryRequestIsCurrent(requestId,state.inventoryRequestId,requestToken,state.token)) return false;
+    state.inventoryFresh=false;
+    $("state-engine").textContent="No se pudo verificar el motor";
+    $("home-model-chip").textContent="Estado del modelo sin verificar";
+    empty($("model-list"),"No se pudo consultar modelos: "+err.message);
+    return false;
+  }
+}
+function clearModelSelection(){
+  if(state.selected) {
+    state.chatEpoch++;
+    resetChatControls(); // El chat anterior ya no debe bloquear otro modelo.
+    state.chat=[];state.previousResponseId=null;state.conversationModel=null;
+    empty($("conversation"),"Modelo descargado o no disponible. Selecciona otro modelo.");
+  }
+  state.selected="";
+  state.loadedInstances=[];
+  $("model-id").value="";
+  $("model-current").textContent="Sin modelo";
+  $("state-model").textContent="Ninguno";
+  $("model-chip").textContent="Modelo sin seleccionar";
+  $("home-model-chip").textContent="Sin modelo seleccionado";
+}
+function selectedModelReadiness() {
+  return modelReadiness(state);
 }
 function selectModel(id, fromSettings=false) {
   if(state.selected!==id){
     state.chatEpoch++;
+    resetChatControls();
     state.chat=[];state.previousResponseId=null;state.conversationModel=null;
     empty($("conversation"),"Nueva conversación para el modelo seleccionado.");
   }
@@ -75,9 +162,11 @@ function selectModel(id, fromSettings=false) {
   $("model-current").textContent=id;
   $("state-model").textContent=id;
   $("model-chip").textContent=id;
-  $("home-model-chip").textContent=id;
   const row=state.models.find(m=>m.key===id);
   state.loadedInstances=(row && Array.isArray(row.loaded_instances))?row.loaded_instances:[];
+  $("home-model-chip").textContent=state.provider==="rest-v1" ?
+    (state.loadedInstances.length?id+" · Cargado":id+" · Falta cargar") :
+    id+" · Inferencia por verificar";
   if(!fromSettings) renderModels();
 }
 function setSavedSettings(value){
@@ -131,28 +220,50 @@ function formValues(){
   if(!id)throw new Error("Selecciona un modelo primero");
   return {model:id,generation,load};
 }
+const modelActionIds=["save-model","load-model","unload-model"];
+const exclusiveModelAction=createExclusiveAction(busy=>{
+  for(const id of modelActionIds) $(id).disabled=busy;
+  $("model-action-status").setAttribute("aria-busy",String(busy));
+});
 async function runModel(action){
-  try{
-    const config=formValues();
-    if(action==="save"){
-      await api("/v1/models/settings",config);
-      selectModel(config.model);
-      showMessage("Parámetros del modelo guardados.");
-    }else if(action==="load"){
-      await api("/v1/models/settings",config);
-      showMessage("Se solicitó cargar el modelo; comprueba RAM y VRAM.");
-      await api("/v1/models/load",{model:config.model,params:config.load});
-      showMessage("Modelo cargado en el motor conectado.");
-      await refreshModels();
-    }else if(action==="unload"){
-      const instance=state.loadedInstances[0]?.id;
-      if(!instance)throw new Error("Selecciona una instancia que esté cargada");
-      if(!confirm("¿Liberar la instancia "+instance+" de la memoria?"))return;
-      await api("/v1/models/unload",{instance_id:instance,model:config.model});
-      showMessage("Se descargó la instancia de la RAM/VRAM.");
-      await refreshModels();
+  return exclusiveModelAction(async()=>{
+    $("model-action-status").textContent={
+      save:"Guardando parámetros…", load:"Solicitando carga y verificando el inventario…",
+      unload:"Comprobando instancia para descargar…"
+    }[action]||"Procesando…";
+    try{
+      const config=formValues();
+      if(action==="save"){
+        await api("/v1/models/settings",config);
+        selectModel(config.model);
+        $("model-action-status").textContent="Parámetros guardados.";
+        showMessage("Parámetros del modelo guardados.");
+      }else if(action==="load"){
+        await api("/v1/models/settings",config);
+        await api("/v1/models/load",{model:config.model,params:config.load});
+        await refreshModels();
+        const feedback=modelLoadFeedback(state,config.model);
+        $("model-action-status").textContent=feedback;
+        showMessage(feedback);
+      }else if(action==="unload"){
+        const instance=state.loadedInstances[0]?.id;
+        if(!instance)throw new Error("Selecciona una instancia que esté cargada");
+        if(!confirm("¿Liberar la instancia "+instance+" de la memoria?")){
+          $("model-action-status").textContent="Descarga cancelada.";
+          return;
+        }
+        $("model-action-status").textContent="Solicitando descarga y verificando inventario…";
+        await api("/v1/models/unload",{instance_id:instance,model:config.model});
+        await refreshModels();
+        const feedback=modelUnloadFeedback(state,config.model,instance);
+        $("model-action-status").textContent=feedback;
+        showMessage(feedback);
+      }
+    }catch(err){
+      $("model-action-status").textContent="Error: "+err.message+" Puedes reintentar.";
+      showMessage(err.message);
     }
-  }catch(err){showMessage(err.message);}
+  });
 }
 $("save-model").addEventListener("click",()=>runModel("save"));
 $("load-model").addEventListener("click",()=>runModel("load"));
@@ -162,7 +273,7 @@ $("download-model").addEventListener("click",async()=>{
   if(!id){showMessage("Escribe el ID del modelo del catálogo");return;}
   if(!confirm("Esto puede descargar varios GB AL SERVIDOR de modelos. ¿Continuar?"))return;
   try {const result=await api("/v1/models/download",{model:id});
-    showMessage("Solicitud: "+(result.download?.status||"aceptada")+". Revisa el progreso en LM Studio.");}
+    showMessage("Solicitud: "+(result.download?.status||"aceptada")+". Consulta el progreso en el motor configurado.");}
   catch(err){showMessage(err.message);}
 });
 function chatBubble(role,text){
@@ -178,10 +289,11 @@ $("home-form").addEventListener("submit", e=>{
   e.preventDefault();
   const prompt=$("home-prompt").value.trim();
   if(!prompt)return;
-  if(!state.token){
-    showMessage("Conecta tu servidor Matick para comenzar.");
-    $("login-dialog").classList.remove("hidden");
-    $("token-input").focus();
+  const readiness=selectedModelReadiness();
+  if(!readiness.ok) {
+    showMessage(readiness.reason);
+    if(!state.token) $("connect-button").click();
+    else view("models");
     return;
   }
   $("prompt").value=prompt;
@@ -200,16 +312,29 @@ $("home-new-task").addEventListener("click",createTask);
 $("chat-form").addEventListener("submit",async e=>{
   e.preventDefault();
   const prompt=$("prompt").value.trim();if(!prompt)return;
-  $("prompt").value="";state.chat.push({role:"user",content:prompt});chatBubble("user",prompt);
-  $("send-chat").disabled=true;
-  const requestEpoch=state.chatEpoch;
+  const readiness=selectedModelReadiness();
+  if(!readiness.ok) {showMessage(readiness.reason);return;}
+  if($("send-chat").disabled) return;
+  // Validar el tamaño real de UTF-8/JSON antes de borrar el borrador o mutar el historial.
+  const stateful=$("stateful-chat").checked;
+  let request;
   try {
-    const stateful=$("stateful-chat").checked;
-    const request=buildChatPayload(state.chat,{
+    request=buildChatPayload([...state.chat,{role:"user",content:prompt}],{
       model:state.selected, stateful,
       previousResponseId:state.previousResponseId,
       conversationModel:state.conversationModel
     });
+  }catch(err){
+    showMessage("No se pudo enviar: "+err.message);
+    $("prompt").focus(); // Conservar el texto para corregirlo y reintentar.
+    return;
+  }
+  $("prompt").value="";state.chat.push({role:"user",content:prompt});chatBubble("user",prompt);
+  $("send-chat").disabled=true;
+  $("home-send").disabled=true;
+  $("chat-stats").textContent="Generando respuesta del modelo…";
+  const requestEpoch=state.chatEpoch;
+  try {
     const response=await api("/v1/chat",request);
     // Un cambio de modelo o un chat limpiado invalidan respuestas pendientes.
     applyChatResultIfCurrent(requestEpoch,state.chatEpoch,()=>{
@@ -234,22 +359,33 @@ $("chat-form").addEventListener("submit",async e=>{
       chatBubble("assistant","No se generó una respuesta: "+err.message);
     });
   }
-  finally{$("send-chat").disabled=false;}
+  finally{
+    // Una respuesta antigua no debe desbloquear botones de una petición nueva.
+    applyChatResultIfCurrent(requestEpoch,state.chatEpoch,resetChatControls);
+  }
 });
 $("prompt").addEventListener("keydown",e=>{if(e.key==="Enter" && e.ctrlKey){e.preventDefault();$("chat-form").requestSubmit();}});
 $("clear-chat").addEventListener("click",()=>{
   state.chatEpoch++;
+  resetChatControls(); // Nueva conversación usable aunque la petición anterior siga pendiente.
   state.chat=[];state.previousResponseId=null;state.conversationModel=null;
   $("chat-stats").textContent="Nueva conversación sin historial";
   empty($("conversation"),"Nueva conversación lista.");
 });
 async function refreshTasks(){
+  const requestId=++state.taskRequestId;
+  const requestToken=state.token;
   try {
-    const data=await api("/v1/tasks");state.tasks=data.tasks||[];
+    const data=await api("/v1/tasks");
+    // Una respuesta de tareas de otro token o refresco no debe mostrarse.
+    if(!inventoryRequestIsCurrent(requestId,state.taskRequestId,requestToken,state.token))return;
+    state.tasks=data.tasks||[];
     const board=$("task-board"),side=$("sidebar-tasks");board.replaceChildren();side.replaceChildren();
     if(!state.tasks.length)empty(board,"No hay trabajos todavía. Crea uno para empezar.");
     for(const task of state.tasks){
       const card=document.createElement("div");card.className="task-card";
+      card.id="task-card-"+task.id;
+      card.tabIndex=-1;
       const title=document.createElement("strong");title.textContent=task.title;
       const detail=document.createElement("small");detail.textContent=task.detail||"Sin descripción";
       const select=document.createElement("select");
@@ -262,14 +398,24 @@ async function refreshTasks(){
         catch(err){showMessage(err.message);await refreshTasks();}
       });
       card.append(title,detail,select);board.append(card);
-      const link=document.createElement("button");link.textContent=task.title;link.addEventListener("click",()=>view("workspace"));side.append(link);
+      const link=document.createElement("button");
+      link.textContent=task.title;
+      link.addEventListener("click",()=>{
+        view("workspace");
+        card.scrollIntoView({behavior:"smooth",block:"center"});
+        card.focus({preventScroll:true});
+      });
+      side.append(link);
     }
-  }catch(err){showMessage("Tareas: "+err.message);}
+  }catch(err){
+    if(inventoryRequestIsCurrent(requestId,state.taskRequestId,requestToken,state.token))
+      showMessage("Tareas: "+err.message);
+  }
 }
 async function createTask(){
   if(!state.token){$("login-dialog").classList.remove("hidden");return;}
-  const title=prompt("Nombre del nuevo trabajo:");if(!title)return;
-  const detail=prompt("Descripción breve (opcional):")||"";
+  const title=window.prompt("Nombre del nuevo trabajo:");if(!title)return;
+  const detail=window.prompt("Descripción breve (opcional):")||"";
   try{await api("/v1/tasks",{title,detail});await refreshTasks();view("workspace");}
   catch(err){showMessage(err.message);}
 }

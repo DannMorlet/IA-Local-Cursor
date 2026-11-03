@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation} from "../matick_cloud/web/chat_payload.mjs";
+import {buildChatPayload, applyChatResultIfCurrent, modelInventoryPresentation, modelReadiness, modelLoadFeedback, inventoryRequestIsCurrent, loginAttemptIsCurrent, resetForAuthenticatedSession, modelUnloadFeedback, createExclusiveAction} from "../matick_cloud/web/chat_payload.mjs";
 
 test("el proveedor alternativo aparece sin fingir inferencia verificada", () => {
   const inventory = {provider: "openai-compatible", configured: true, connected: false,
@@ -99,4 +99,220 @@ test("respuestas tardías no contaminan otro modelo ni un chat limpiado", async 
   epoch++;
   assert.equal(applyChatResultIfCurrent(currentEpoch, epoch,
     () => messages.push("error tardío")), false);
+});
+
+
+test("el chat exige autenticación, inventario vigente y modelo disponible", () => {
+  const ready = {token:"token-local", inventoryFresh:true, selected:"modelo-a",
+    provider:"rest-v1", models:[{key:"modelo-a", loaded_instances:[{id:"instancia-a"}]}]};
+  assert.match(modelReadiness({...ready, token:""}).reason, /Conecta/);
+  assert.match(modelReadiness({...ready, inventoryFresh:false}).reason, /Actualiza/);
+  assert.match(modelReadiness({...ready, selected:""}).reason, /Selecciona/);
+  assert.match(modelReadiness({...ready, selected:"modelo-b"}).reason, /ya no aparece/);
+  assert.match(modelReadiness({...ready, models:[]}).reason, /ya no aparece/);
+});
+
+test("REST v1 no permite chatear con modelo solo seleccionado pero sin cargar", () => {
+  const ready = {token:"token-local", inventoryFresh:true, selected:"modelo-a",
+    provider:"rest-v1", models:[{key:"modelo-a", loaded_instances:[]}]};
+  assert.equal(modelReadiness(ready).ok, false);
+  assert.match(modelReadiness(ready).reason, /NO cargado/);
+  assert.deepEqual(modelReadiness({...ready,
+    models:[{key:"modelo-a", loaded_instances:[{id:"instancia-a"}]}]}),
+    {ok:true, verifiedInference:false});
+});
+
+test("proveedor compatible no presume inferencia verificada sin pesos reales", () => {
+  const state = {token:"token-local", inventoryFresh:true, selected:"modelo-a",
+    provider:"openai-compatible", models:[{key:"modelo-a", source:"openai-compatible"}]};
+  assert.deepEqual(modelReadiness(state), {ok:true, verifiedInference:false});
+});
+
+test("cargar no significa inferir: confirma solo la instancia reportada por REST v1", () => {
+  const state={provider:"rest-v1", inventoryFresh:true,
+    models:[{key:"modelo-a",loaded_instances:[]}]};
+  assert.match(modelLoadFeedback(state,"modelo-a"), /todavía no confirma/);
+  assert.match(modelLoadFeedback({...state,models:[{key:"modelo-a",
+    loaded_instances:[{id:"instancia-1"}]}]},"modelo-a"), /declarada cargada/);
+  assert.match(modelLoadFeedback({...state,inventoryFresh:false},"modelo-a"),
+    /no se pudo comprobar/);
+  assert.match(modelLoadFeedback(state,"modelo-inexistente"), /no aparece/);
+  assert.match(modelLoadFeedback({...state,provider:"openai-compatible"},"modelo-a"),
+    /inferencia todavía sin verificar/);
+});
+
+
+test("inventario: una respuesta tardía no debe reemplazar un refresco más reciente", () => {
+  const token = "token-actual";
+  // Dos consultas simultáneas: la primera puede finalizar después de la segunda.
+  assert.equal(inventoryRequestIsCurrent(1, 2, token, token), false);
+  assert.equal(inventoryRequestIsCurrent(2, 2, token, token), true);
+  // Un error tardío de la consulta anterior tampoco debe invalidar la nueva.
+  assert.equal(inventoryRequestIsCurrent(3, 4, token, token), false);
+});
+
+test("inventario: un token anterior no puede reactivar modelos de otra sesión", () => {
+  assert.equal(inventoryRequestIsCurrent(5, 5, "token-anterior", "token-nuevo"), false);
+  assert.equal(inventoryRequestIsCurrent(5, 5, "", ""), false);
+  assert.equal(inventoryRequestIsCurrent(5, 5, "token-nuevo", "token-nuevo"), true);
+});
+
+
+test("autenticación: cancelar o editar el token invalida la respuesta tardía", () => {
+  assert.equal(loginAttemptIsCurrent(7, 7, "token-vigente", "token-vigente"), true);
+  assert.equal(loginAttemptIsCurrent(7, 8, "token-vigente", "token-vigente"), false);
+  assert.equal(loginAttemptIsCurrent(7, 7, "token-anterior", "token-nuevo"), false);
+  assert.equal(loginAttemptIsCurrent(7, 7, "", ""), false);
+});
+
+test("autenticación: el resultado antiguo no sustituye la sesión nueva", async () => {
+  let attempt = 1;
+  const activeSession = {token:"token-ya-validado"};
+  let complete;
+  const pending = new Promise(resolve => {complete=resolve;});
+  // El usuario cancela la autenticación mientras el servidor responde.
+  attempt++;
+  complete({rest_v1:{configured:true}});
+  await pending;
+  if(loginAttemptIsCurrent(1,attempt,"token-pendiente","token-pendiente"))
+    activeSession.token="token-pendiente";
+  assert.equal(activeSession.token,"token-ya-validado");
+});
+
+
+test("limpiar el chat permite enviar otra petición sin esperar la anterior", async () => {
+  let epoch=1;
+  let sendDisabled=true;
+  let homeDisabled=true;
+  let resolveOld;
+  const oldPending=new Promise(resolve=>{resolveOld=resolve;});
+  const oldEpoch=epoch;
+  // Nueva conversación: los botones se habilitan de inmediato.
+  epoch++;
+  sendDisabled=false;
+  homeDisabled=false;
+  assert.equal(sendDisabled,false);
+  assert.equal(homeDisabled,false);
+  // La conversación nueva envía otra petición y vuelve a bloquear los botones.
+  const newEpoch=epoch;
+  sendDisabled=true;
+  homeDisabled=true;
+  resolveOld();
+  await oldPending;
+  // finally de la solicitud anterior: no debe desbloquear la nueva.
+  assert.equal(applyChatResultIfCurrent(oldEpoch,epoch,()=>{
+    sendDisabled=false;homeDisabled=false;
+  }),false);
+  assert.equal(sendDisabled,true);
+  assert.equal(homeDisabled,true);
+  // Solo la petición vigente puede liberar ambos botones.
+  assert.equal(applyChatResultIfCurrent(newEpoch,epoch,()=>{
+    sendDisabled=false;homeDisabled=false;
+  }),true);
+  assert.equal(sendDisabled,false);
+  assert.equal(homeDisabled,false);
+});
+
+test("cambiar de modelo invalida la limpieza tardía del envío anterior", () => {
+  let epoch=10;
+  let pending=true;
+  const previousEpoch=epoch;
+  epoch++; // Se seleccionó otro modelo y se restableció la UI.
+  pending=false;
+  pending=true; // Se envió una pregunta con el modelo nuevo.
+  applyChatResultIfCurrent(previousEpoch,epoch,()=>{pending=false;});
+  assert.equal(pending,true);
+  applyChatResultIfCurrent(epoch,epoch,()=>{pending=false;});
+  assert.equal(pending,false);
+});
+
+test("el borrador UTF-8 excesivo se rechaza sin mutar el historial", () => {
+  // maxlength=8000 no impide exceder 16 KiB cuando el texto es multibyte.
+  const history=[user("hola"),assistant("listo")];
+  const snapshot=structuredClone(history);
+  const draft="漢".repeat(6000);
+  assert.throws(()=>buildChatPayload([...history,user(draft)],{model:"modelo-a"}),/16 KiB/);
+  assert.deepEqual(history,snapshot);
+  assert.equal(draft.length,6000); // El borrador sigue disponible para editar.
+  const corrected=buildChatPayload([...history,user("pregunta breve")],{model:"modelo-a"});
+  assert.deepEqual(corrected.messages,[...history,user("pregunta breve")]);
+});
+
+test("cambiar sesión autenticada invalida chat, modelos y tareas anteriores", () => {
+  const state={chatEpoch:4, inventoryRequestId:7, taskRequestId:10,
+    chat:[user("privado")], previousResponseId:"resp-vieja", conversationModel:"modelo-a",
+    models:[{key:"modelo-a",loaded_instances:[{id:"antigua"}]}], provider:"rest-v1",
+    inventoryFresh:true, selected:"modelo-a", loadedInstances:[{id:"antigua"}],
+    tasks:[{id:1,title:"trabajo de otra sesión"}]};
+  const oldEpoch=state.chatEpoch, oldInventory=state.inventoryRequestId,
+    oldTasks=state.taskRequestId;
+  resetForAuthenticatedSession(state);
+  assert.equal(applyChatResultIfCurrent(oldEpoch,state.chatEpoch,()=>{throw Error("chat antiguo");}),false);
+  assert.equal(inventoryRequestIsCurrent(oldInventory,state.inventoryRequestId,"token-a","token-b"),false);
+  assert.equal(inventoryRequestIsCurrent(oldTasks,state.taskRequestId,"token-a","token-b"),false);
+  assert.deepEqual(state.chat,[]);
+  assert.equal(state.previousResponseId,null);
+  assert.equal(state.conversationModel,null);
+  assert.deepEqual(state.models,[]);
+  assert.equal(state.provider,"");
+  assert.equal(state.inventoryFresh,false);
+  assert.equal(state.selected,"");
+  assert.deepEqual(state.loadedInstances,[]);
+  assert.deepEqual(state.tasks,[]);
+});
+
+test("un refresco viejo de tareas no puede pintar resultados después de reconectar", async () => {
+  const state={chatEpoch:0,inventoryRequestId:0,taskRequestId:1,
+    chat:[],previousResponseId:null,conversationModel:null,models:[],
+    provider:"",inventoryFresh:false,selected:"",loadedInstances:[],tasks:[]};
+  let resolveOld;
+  const pending=new Promise(resolve=>{resolveOld=resolve;});
+  const oldRequest=state.taskRequestId, oldToken="token-a";
+  resetForAuthenticatedSession(state);
+  const currentToken="token-b";
+  resolveOld([{id:1,title:"tarea de token-a"}]);
+  const result=await pending;
+  if(inventoryRequestIsCurrent(oldRequest,state.taskRequestId,oldToken,currentToken))
+    state.tasks=result;
+  assert.deepEqual(state.tasks,[]);
+  const currentRequest=++state.taskRequestId;
+  if(inventoryRequestIsCurrent(currentRequest,state.taskRequestId,currentToken,currentToken))
+    state.tasks=[{id:2,title:"tarea de token-b"}];
+  assert.equal(state.tasks[0].id,2);
+});
+
+test("descarga de instancia distingue solicitud de inventario y RAM física", () => {
+  const base={provider:"rest-v1",inventoryFresh:true,
+    models:[{key:"modelo-a",loaded_instances:[{id:"instancia-a"}]}]};
+  assert.match(modelUnloadFeedback(base,"modelo-a","instancia-a"),/todavía reporta/);
+  assert.match(modelUnloadFeedback({...base,models:[{key:"modelo-a",loaded_instances:[]}]},
+    "modelo-a","instancia-a"),/RAM\/VRAM física sin medir/);
+  assert.match(modelUnloadFeedback({...base,inventoryFresh:false},"modelo-a","instancia-a"),
+    /no se pudo verificar/);
+  assert.match(modelUnloadFeedback(base,"modelo-desconocido","instancia-a"),/no aparece/);
+});
+
+test("doble clic no duplica una carga pendiente y habilita reintento", async () => {
+  const transitions=[];
+  const execute=createExclusiveAction(busy=>transitions.push(busy));
+  let release;
+  const pending=new Promise(resolve=>{release=resolve;});
+  let calls=0;
+  const first=execute(async()=>{calls++;await pending;});
+  assert.equal(await execute(async()=>{calls++;}),false);
+  assert.equal(calls,1);
+  release();
+  assert.equal(await first,true);
+  assert.equal(await execute(async()=>{calls++;}),true);
+  assert.equal(calls,2);
+  assert.deepEqual(transitions,[true,false,true,false]);
+});
+
+test("fallo de carga libera el bloqueo y permite reintentar", async () => {
+  const transitions=[];
+  const execute=createExclusiveAction(busy=>transitions.push(busy));
+  await assert.rejects(execute(async()=>{throw new Error("motor sin memoria");}),
+    /motor sin memoria/);
+  assert.equal(await execute(async()=>{}),true);
+  assert.deepEqual(transitions,[true,false,true,false]);
 });
