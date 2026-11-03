@@ -3,7 +3,7 @@
 param([string]$OutputDir='out\setup')
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$setup=(Resolve-Path (Join-Path $root "$OutputDir\MatickStudioLM-v1.0.1-x64-Setup.exe")).Path
+$setup=(Resolve-Path (Join-Path $root "$OutputDir\MatickStudioLM-v1.2.0-x64-Setup.exe")).Path
 $sandbox=Join-Path $env:RUNNER_TEMP 'MatickInstallerSandbox'
 $external=Join-Path $env:RUNNER_TEMP 'Matick-No-Tocar'
 New-Item -ItemType Directory $external -Force | Out-Null
