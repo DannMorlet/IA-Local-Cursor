@@ -19,6 +19,7 @@ if ($CloudUrl -notmatch '^https://[^\s]+$' -and
     $CloudUrl -notmatch '^http://(127\.0\.0\.1|localhost)(:\d+)?/?$') {
     throw 'Solo se permite HTTP en localhost o HTTPS remoto.'
 }
+$previousCloudUrl = $env:MATICK_CLOUD_URL
 $env:MATICK_CLOUD_URL = $CloudUrl
 if (-not $env:MATICK_TOKEN) {
     Write-Warning 'Falta MATICK_TOKEN en esta sesión. La interfaz abrirá, pero no podrá enviar mensajes.'
@@ -40,5 +41,6 @@ try {
     }
 } finally {
     $env:MATICK_RENDERER = $previous
+    $env:MATICK_CLOUD_URL = $previousCloudUrl
     Write-Host ('Diagnostico visual: ' + (Join-Path $env:LOCALAPPDATA 'MatickStudioLM\logs\render.log'))
 }
