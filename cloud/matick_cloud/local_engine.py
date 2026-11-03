@@ -78,9 +78,16 @@ class LocalLlamaEngine:
         for candidate in self.models_dir.rglob("*"):
             if len(found) >= 300:
                 break
-            if candidate.suffix.lower() != ".gguf" or not candidate.is_file():
+            if candidate.suffix.lower() != ".gguf":
                 continue
-            path = candidate.resolve()
+            # El archivo puede desaparecer o bloquearse durante rglob/is_file/resolve.
+            # Omitir solo esa entrada; nunca modificar pesos ni rutas externas.
+            try:
+                if not candidate.is_file():
+                    continue
+                path = candidate.resolve()
+            except OSError:
+                continue
             if path.is_relative_to(self.models_dir):
                 found.append(path)
         return sorted(found, key=lambda p: str(p).casefold())
