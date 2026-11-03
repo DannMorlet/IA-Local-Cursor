@@ -43,9 +43,14 @@ export function modelInventoryPresentation(inventory, settings = {}) {
   const models = Array.isArray(inventory?.models) ? inventory.models : [];
   const alternative = inventory?.provider === "openai-compatible" &&
     inventory?.configured === true;
+  const local = inventory?.provider === "llama.cpp-local";
+  const localReady = local && inventory?.configured === true;
   return {
-    engineStatus: alternative ? "Proveedor compatible configurado (sin verificar)" :
-      inventory?.connected ? "REST v1 disponible" : "No configurado",
+    engineStatus: local ? (localReady
+      ? "Motor llama.cpp local disponible"
+      : "Motor local no instalado o sin configurar") :
+      (alternative ? "Proveedor compatible configurado (sin verificar)" :
+      inventory?.connected ? "REST v1 disponible" : "No configurado"),
     selectedModel: settings?.model ||
       (alternative && models.length === 1 ? models[0].key : ""),
   };
@@ -66,7 +71,8 @@ export function modelReadiness({token="", inventoryFresh=false, selected="",
   if(!selected) return {ok:false, reason:"Selecciona un modelo en Modelos IA."};
   const item=Array.isArray(models) ? models.find(m=>m?.key===selected) : null;
   if(!item) return {ok:false, reason:"El modelo elegido ya no aparece en el catálogo. Actualiza Modelos IA."};
-  if(provider==="rest-v1" && (!Array.isArray(item.loaded_instances) || !item.loaded_instances.length))
+  if(["rest-v1", "llama.cpp-local"].includes(provider) &&
+      (!Array.isArray(item.loaded_instances) || !item.loaded_instances.length))
     return {ok:false, reason:"Modelo elegido pero NO cargado en RAM/VRAM. En Modelos IA pulsa Cargar."};
   return {ok:true, verifiedInference:false};
 }
@@ -76,11 +82,12 @@ export function modelLoadFeedback({provider="", inventoryFresh=false, models=[]}
   if(!inventoryFresh) return "Carga solicitada, pero no se pudo comprobar el estado del motor.";
   const item=Array.isArray(models) ? models.find(row=>row?.key===model) : null;
   if(!item) return "Carga solicitada; el modelo no aparece en el catálogo actualizado.";
-  if(provider!=="rest-v1")
+  if(provider!=="rest-v1" && provider!=="llama.cpp-local")
     return "Solicitud enviada al proveedor; inferencia todavía sin verificar.";
+  const engine = provider==="llama.cpp-local" ? "llama.cpp local" : "REST v1";
   return Array.isArray(item.loaded_instances) && item.loaded_instances.length ?
-    "Instancia declarada cargada por REST v1; inferencia aún sin verificar." :
-    "Carga solicitada; REST v1 todavía no confirma una instancia cargada.";
+    "Instancia declarada cargada por "+engine+"; inferencia aún sin verificar." :
+    "Carga solicitada; "+engine+" todavía no confirma una instancia cargada.";
 }
 
 
@@ -116,11 +123,13 @@ export function modelUnloadFeedback({provider="", inventoryFresh=false, models=[
   if(!inventoryFresh) return "Descarga solicitada, pero no se pudo verificar el inventario.";
   const item=Array.isArray(models) ? models.find(row=>row?.key===model) : null;
   if(!item) return "Descarga solicitada; el modelo ya no aparece en el catálogo.";
-  if(provider!=="rest-v1") return "Solicitud enviada; el proveedor no confirma la memoria liberada.";
+  if(provider!=="rest-v1" && provider!=="llama.cpp-local")
+    return "Solicitud enviada; el proveedor no confirma la memoria liberada.";
+  const engine = provider==="llama.cpp-local" ? "llama.cpp local" : "REST v1";
   const instances=Array.isArray(item.loaded_instances) ? item.loaded_instances : [];
   return instances.some(row=>row?.id===instanceId) ?
-    "Descarga solicitada; REST v1 todavía reporta la instancia cargada." :
-    "REST v1 ya no reporta la instancia; RAM/VRAM física sin medir.";
+    "Descarga solicitada; "+engine+" todavía reporta la instancia cargada." :
+    engine+" ya no reporta la instancia; RAM/VRAM física sin medir.";
 }
 
 /** Serializa acciones de modelos para impedir cargas/descargas duplicadas por doble clic. */
