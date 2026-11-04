@@ -77,7 +77,11 @@ class LocalLlamaEngine:
         found = []
         # rglob puede fallar mientras recorre unidades removibles o carpetas
         # inaccesibles. Conservar las entradas ya encontradas y no devolver 500.
-        iterator = iter(self.models_dir.rglob("*"))
+        try:
+            iterator = iter(self.models_dir.rglob("*"))
+        except (OSError, RuntimeError):
+            # La unidad puede desaparecer incluso antes de crear el iterador.
+            return []
         while len(found) < 300:
             try:
                 candidate = next(iterator)
