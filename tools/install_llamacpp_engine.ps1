@@ -9,7 +9,7 @@ Ejemplo:
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty()][string]$ModelPath,
+    [string]$ModelPath = '',
     [ValidateSet('Cuda13','Vulkan','Cpu')][string]$Backend = 'Cuda13',
     [ValidateRange(0,999)][int]$GpuLayers = 99,
     [ValidateRange(512,32768)][int]$ContextSize = 4096
@@ -17,6 +17,20 @@ param(
 $ErrorActionPreference = 'Stop'
 if (-not [Environment]::Is64BitOperatingSystem) { throw 'Se requiere Windows x64.' }
 if (-not $env:LOCALAPPDATA) { throw 'No hay LOCALAPPDATA.' }
+if (-not $ModelPath.Trim()) {
+    Add-Type -AssemblyName System.Windows.Forms
+    $picker = New-Object System.Windows.Forms.OpenFileDialog
+    $picker.Title = 'Matick Studio LM: elige el modelo GGUF para la RTX'
+    $picker.Filter = 'Modelos GGUF (*.gguf)|*.gguf'
+    $picker.Multiselect = $false
+    $picker.CheckFileExists = $true
+    $picker.InitialDirectory = if (Test-Path -LiteralPath 'C:\IA') { 'C:\IA' } else { $env:USERPROFILE }
+    if ($picker.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
+        Write-Host 'Se canceló: no se ha descargado ni configurado un motor.'
+        return
+    }
+    $ModelPath = $picker.FileName
+}
 $model = (Resolve-Path -LiteralPath $ModelPath -ErrorAction Stop).Path
 if ([IO.Path]::GetExtension($model) -ine '.gguf') { throw 'Selecciona un modelo .gguf real.' }
 $stream = [IO.File]::OpenRead($model)
