@@ -92,6 +92,25 @@ class PortableInventoryTests(TestCase):
             self.assertEqual(healthy.read_bytes(), b"GGUF-preserved")
             self.assertEqual(cyclic.read_bytes(), b"GGUF-untouched")
 
+    def test_cyclic_directory_iterator_keeps_previously_found_models(self):
+        with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
+            root = Path(temp)
+            models_dir = root / "models"
+            models_dir.mkdir()
+            healthy = models_dir / "conservado.gguf"
+            healthy.write_bytes(b"GGUF-preserved")
+            engine = LocalLlamaEngine(root, models_dir=models_dir)
+
+            def cyclic_scan(_pattern):
+                yield healthy
+                raise RuntimeError("Symlink loop while traversing a directory")
+
+            with patch.object(Path, "rglob", cyclic_scan):
+                catalog = engine.models()
+
+            self.assertEqual([item["name"] for item in catalog], ["conservado"])
+            self.assertEqual(healthy.read_bytes(), b"GGUF-preserved")
+
     def test_directory_iterator_failure_keeps_previously_found_models(self):
         with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
             root = Path(temp)
