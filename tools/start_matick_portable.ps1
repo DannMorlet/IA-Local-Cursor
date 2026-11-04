@@ -40,6 +40,9 @@ try {
     Push-Location -LiteralPath $exeDir
     try {
         & $exe
+        if ($LASTEXITCODE -ne 0) {
+            throw "MatickStudioLM.exe terminó con código de salida $LASTEXITCODE. Revise el registro render.log."
+        }
     } finally {
         Pop-Location
     }
