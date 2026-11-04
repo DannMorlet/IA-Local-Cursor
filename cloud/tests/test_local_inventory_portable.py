@@ -4,6 +4,8 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
+from matick_cloud.models import ModelOffline
+
 from matick_cloud.local_engine import LocalLlamaEngine
 
 
@@ -65,3 +67,51 @@ class PortableInventoryTests(TestCase):
             self.assertEqual(healthy.read_bytes(), b"GGUF-preserve")
             self.assertFalse(missing.exists())
             self.assertFalse(inaccessible.exists())
+
+
+class LoadPreflightTests(TestCase):
+    def test_missing_selected_gguf_does_not_unload_existing_model(self):
+        with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
+            root = Path(temp)
+            engine_dir = root / "engine"
+            engine_dir.mkdir()
+            binary = engine_dir / "llama-server.exe"
+            binary.write_bytes(b"fake executable: not run")
+            engine = LocalLlamaEngine(root, executable=binary)
+            missing = root / "models" / "missing.gguf"
+            missing.parent.mkdir()
+            missing_key = engine._id(missing)
+            engine._model = "local/existing"
+            with patch.object(engine, "_inventory", return_value={missing_key: missing}), \
+                 patch.object(engine, "_ready", return_value=False), \
+                 patch.object(engine, "_stop") as stop:
+                with self.assertRaisesRegex(ModelOffline, "ya no esta disponible"):
+                    engine.load(missing_key, {})
+                stop.assert_not_called()
+                self.assertEqual(engine._model, "local/existing")
+
+    def test_unreadable_selected_gguf_preserves_existing_model(self):
+        with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
+            root = Path(temp)
+            engine_dir = root / "engine"
+            engine_dir.mkdir()
+            binary = engine_dir / "llama-server.exe"
+            binary.write_bytes(b"fake executable: not run")
+            engine = LocalLlamaEngine(root, executable=binary)
+            selected = root / "models" / "locked.gguf"
+            selected.parent.mkdir()
+            key = engine._id(selected)
+            engine._model = "local/existing"
+            original_is_file = Path.is_file
+            def deny(path):
+                if path == selected:
+                    raise PermissionError("unidad inaccesible")
+                return original_is_file(path)
+            with patch.object(engine, "_inventory", return_value={key: selected}), \
+                 patch.object(engine, "_ready", return_value=False), \
+                 patch.object(engine, "_stop") as stop, \
+                 patch.object(Path, "is_file", deny):
+                with self.assertRaisesRegex(ModelOffline, "No se puede acceder"):
+                    engine.load(key, {})
+                stop.assert_not_called()
+                self.assertEqual(engine._model, "local/existing")
