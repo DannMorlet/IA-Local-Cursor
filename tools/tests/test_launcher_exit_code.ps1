@@ -32,6 +32,22 @@ try {
     if ($env:MATICK_CLOUD_URL -ne 'http://127.0.0.1:18776' -or $env:MATICK_TOKEN -ne 'test-only') {
         throw 'El launcher modificó la configuración heredada tras fallar.'
     }
+    # A rejected inherited URL must stop before launching the native EXE.
+    # The stub would exit 17 if executed; an early URL validation error is distinct.
+    $env:MATICK_CLOUD_URL = 'http://example.invalid:18776'
+    $blockedMessage = $null
+    try {
+        & (Join-Path $root 'start_matick_portable.ps1') -SafeMode
+    } catch {
+        $blockedMessage = $_.Exception.Message
+    }
+    if (-not $blockedMessage -or $blockedMessage -notmatch 'Solo se permite HTTP en localhost o HTTPS remoto') {
+        throw ('La URL HTTP heredada no se rechazó antes de ejecutar el EXE: ' + $blockedMessage)
+    }
+    if ((Get-Location).Path -ne $previousLocation -or $env:MATICK_RENDERER -ne 'dx12') {
+        throw 'El rechazo de URL alteró el directorio o renderizador del llamador.'
+    }
+    $env:MATICK_CLOUD_URL = 'http://127.0.0.1:18776'
     Write-Host 'APROBADO: código de salida y restauración de entorno/directorio.'
 } finally {
     $env:MATICK_CLOUD_URL = $previousCloudUrl
