@@ -30,6 +30,10 @@ jobs:
         env:
           PYTHONPATH: cloud
         run: python -m unittest discover -s cloud/tests -p test_cloud.py -v
+      - name: Pruebas integración motor GGUF sin descargar pesos
+        env:
+          PYTHONPATH: cloud
+        run: python -m unittest discover -s cloud/tests -p test_local_inference.py -v
       - name: Pruebas chat con proveedor simulado
         id: chat
         env:
