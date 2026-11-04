@@ -76,6 +76,14 @@ try {
     if ($missingAppDataFailure -notmatch 'código de salida 17') {
         throw ('LOCALAPPDATA ausente ocultó el error nativo: ' + $missingAppDataFailure)
     }
+    # The missing-LOCALAPPDATA error path must preserve every caller setting.
+    if ($env:MATICK_CLOUD_URL -ne 'http://127.0.0.1:18776' -or
+        $env:MATICK_TOKEN -ne 'test-only' -or
+        $env:MATICK_RENDERER -ne 'dx12' -or
+        $null -ne $env:LOCALAPPDATA -or
+        (Get-Location).Path -ne $previousLocation) {
+        throw 'LOCALAPPDATA ausente alteró entorno o directorio tras fallar el EXE.'
+    }
     Write-Host 'APROBADO: código de salida y restauración de entorno/directorio.'
 } finally {
     $env:MATICK_CLOUD_URL = $previousCloudUrl
