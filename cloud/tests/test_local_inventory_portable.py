@@ -68,6 +68,25 @@ class PortableInventoryTests(TestCase):
             self.assertFalse(missing.exists())
             self.assertFalse(inaccessible.exists())
 
+    def test_directory_iterator_failure_keeps_previously_found_models(self):
+        with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
+            root = Path(temp)
+            models_dir = root / "models"
+            models_dir.mkdir()
+            healthy = models_dir / "conservado.gguf"
+            healthy.write_bytes(b"GGUF-keep")
+            engine = LocalLlamaEngine(root, models_dir=models_dir)
+
+            def interrupted_scan(_pattern):
+                yield healthy
+                raise PermissionError("unidad desconectada durante rglob")
+
+            with patch.object(Path, "rglob", interrupted_scan):
+                catalog = engine.models()
+
+            self.assertEqual([item["name"] for item in catalog], ["conservado"])
+            self.assertEqual(healthy.read_bytes(), b"GGUF-keep")
+
 
 class LoadPreflightTests(TestCase):
     def test_missing_selected_gguf_does_not_unload_existing_model(self):
