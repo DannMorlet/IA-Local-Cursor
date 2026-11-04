@@ -13,13 +13,16 @@ try {
     $env:MATICK_CLOUD_URL = 'http://127.0.0.1:18776'
     $env:MATICK_TOKEN = 'test-only'
     $env:MATICK_RENDERER = 'dx12'
-    $failed = $false
+    $caughtMessage = $null
     try {
         & (Join-Path $root 'start_matick_portable.ps1') -SafeMode
     } catch {
-        $failed = $_.Exception.Message -match 'código de salida 17'
+        $caughtMessage = $_.Exception.Message
     }
-    if (-not $failed) { throw 'El launcher ocultó el código de salida 17.' }
+    if (-not $caughtMessage) { throw 'El launcher no lanzó ninguna excepción ante el código 17.' }
+    if ($caughtMessage -notmatch 'código de salida 17') {
+        throw ('El launcher falló por una causa inesperada: ' + $caughtMessage)
+    }
     if ((Get-Location).Path -ne $previousLocation) {
         throw 'El launcher no restauró el directorio del llamador tras fallar.'
     }
@@ -34,5 +37,6 @@ try {
     $env:MATICK_CLOUD_URL = $previousCloudUrl
     $env:MATICK_TOKEN = $previousToken
     $env:MATICK_RENDERER = $previousRenderer
+    Set-Location -LiteralPath $previousLocation
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
