@@ -151,6 +151,13 @@ class LocalLlamaEngine:
                 raise ValueError("Selecciona un GGUF disponible del catálogo local")
             if self._model == model and self._ready():
                 return {"status": "loaded", "instance_id": model, "engine": "llama.cpp-local"}
+            # No descargar un modelo funcional si el GGUF seleccionado desaparecio
+            # entre el inventario y la carga (por ejemplo, unidad desconectada).
+            try:
+                if not path.is_file():
+                    raise ModelOffline("El GGUF seleccionado ya no esta disponible; actualiza el catalogo")
+            except OSError as exc:
+                raise ModelOffline("No se puede acceder al GGUF seleccionado; verifica la unidad y permisos") from exc
             self._stop()
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))
