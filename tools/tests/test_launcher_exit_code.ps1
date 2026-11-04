@@ -66,6 +66,24 @@ try {
             throw ('Rechazo de URL alteró entorno: ' + $unsafeUrl)
         }
     }
+    # Port zero is not a usable HTTP endpoint. Reject before invoking the EXE.
+    # A native stub exit 17 would mean the preflight failed to protect the user.
+    foreach ($invalidPortUrl in @('http://127.0.0.1:0/v1', 'https://example.com:0/v1')) {
+        $env:MATICK_CLOUD_URL = $invalidPortUrl
+        $portFailure = $null
+        try {
+            & (Join-Path $root 'start_matick_portable.ps1') -SafeMode
+        } catch {
+            $portFailure = $_.Exception.Message
+        }
+        if ($portFailure -notmatch 'Solo se permite HTTP en localhost o HTTPS remoto') {
+            throw ('Puerto cero no rechazado antes del EXE: ' + $invalidPortUrl + ' -> ' + $portFailure)
+        }
+        if ($env:MATICK_CLOUD_URL -ne $invalidPortUrl -or
+            $env:MATICK_RENDERER -ne 'dx12' -or (Get-Location).Path -ne $previousLocation) {
+            throw ('Puerto cero alteró el entorno del llamador: ' + $invalidPortUrl)
+        }
+    }
     # A loopback URL with a path is valid for a REST v1 endpoint.
     $env:MATICK_CLOUD_URL = 'http://127.0.0.1:18776/v1'
     $loopbackFailure = $null
