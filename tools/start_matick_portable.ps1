@@ -27,8 +27,11 @@ if ($effectiveCloudUrl) {
     $allowedScheme = $validAbsoluteUrl -and (
         $parsedUrl.Scheme -eq 'https' -or ($parsedUrl.Scheme -eq 'http' -and $loopbackHost)
     )
+    # A URI can be syntactically absolute while naming an unusable port (0).
+    # Reject before the native process starts so its connection error is not opaque.
+    $validPort = $validAbsoluteUrl -and $parsedUrl.Port -ge 1 -and $parsedUrl.Port -le 65535
     # Do not allow embedded URL credentials: tokens belong in MATICK_TOKEN.
-    if (-not $allowedScheme -or $parsedUrl.UserInfo -or $parsedUrl.Fragment) {
+    if (-not $allowedScheme -or -not $validPort -or $parsedUrl.UserInfo -or $parsedUrl.Fragment) {
         throw 'Solo se permite HTTP en localhost o HTTPS remoto, sin credenciales ni fragmentos en URL.'
     }
 }
