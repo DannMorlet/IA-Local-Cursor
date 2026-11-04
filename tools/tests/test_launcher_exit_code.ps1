@@ -47,6 +47,22 @@ try {
     if ((Get-Location).Path -ne $previousLocation -or $env:MATICK_RENDERER -ne 'dx12') {
         throw 'El rechazo de URL alteró el directorio o renderizador del llamador.'
     }
+    # An explicit safe URL must override an unsafe inherited value without
+    # permanently changing the environment, even if the native process fails.
+    $env:MATICK_CLOUD_URL = 'http://example.invalid:18776'
+    $explicitFailure = $null
+    try {
+        & (Join-Path $root 'start_matick_portable.ps1') -CloudUrl 'http://127.0.0.1:18776' -SafeMode
+    } catch {
+        $explicitFailure = $_.Exception.Message
+    }
+    if ($explicitFailure -notmatch 'código de salida 17') {
+        throw ('La URL explícita segura no prevaleció sobre la heredada: ' + $explicitFailure)
+    }
+    if ($env:MATICK_CLOUD_URL -ne 'http://example.invalid:18776' -or
+        $env:MATICK_RENDERER -ne 'dx12' -or (Get-Location).Path -ne $previousLocation) {
+        throw 'El launcher no restauró el entorno tras utilizar -CloudUrl explícita.'
+    }
     $env:MATICK_CLOUD_URL = 'http://127.0.0.1:18776'
     Write-Host 'APROBADO: código de salida y restauración de entorno/directorio.'
 } finally {
