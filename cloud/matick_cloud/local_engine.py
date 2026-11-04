@@ -83,7 +83,8 @@ class LocalLlamaEngine:
                 candidate = next(iterator)
             except StopIteration:
                 break
-            except OSError:
+            except (OSError, RuntimeError):
+                # pathlib puede emitir RuntimeError ante ciclos de directorios.
                 break
             if candidate.suffix.lower() != ".gguf":
                 continue
