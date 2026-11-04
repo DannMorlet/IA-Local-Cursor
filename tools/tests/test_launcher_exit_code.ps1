@@ -94,6 +94,8 @@ try {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+& (Join-Path $PSScriptRoot 'test_launcher_missing_exe.ps1')
+
 # PowerShell 5.1 returns the last native process exit code even when its
 # expected failure was caught and all assertions passed. Reset it only after
 # successful completion; thrown assertions still fail the workflow.
