@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 # Accept both the source-tree layout and a portable ZIP with the script next to the EXE.
 $exe = Join-Path $PSScriptRoot 'MatickStudioLM.exe'
 if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
-    $exe = Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..')).Path 'MatickStudioLM.exe'
+    $exe = Join-Path (Join-Path $PSScriptRoot '..') 'MatickStudioLM.exe'
 }
 if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
     throw 'MatickStudioLM.exe no encontrado junto al script ni en su carpeta superior.'
