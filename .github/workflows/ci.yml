@@ -115,6 +115,9 @@ jobs:
       - name: Regresión del script portable
         shell: pwsh
         run: .\tests\test_portable_launcher.ps1
+      - name: Regresión de código de salida del launcher
+        shell: powershell
+        run: .\tools\tests\test_launcher_exit_code.ps1
       - name: Compilar instalador Windows x64 con desinstalador
         shell: pwsh
         run: .\tools\build_windows_installer.ps1
