@@ -75,12 +75,28 @@ class LocalLlamaEngine:
         if not self.models_dir.is_dir():
             return []
         found = []
-        for candidate in self.models_dir.rglob("*"):
-            if len(found) >= 300:
+        # rglob puede fallar mientras recorre unidades removibles o carpetas
+        # inaccesibles. Conservar las entradas ya encontradas y no devolver 500.
+        iterator = iter(self.models_dir.rglob("*"))
+        while len(found) < 300:
+            try:
+                candidate = next(iterator)
+            except StopIteration:
                 break
-            if candidate.suffix.lower() != ".gguf" or not candidate.is_file():
+            except (OSError, RuntimeError):
+                # pathlib puede emitir RuntimeError ante ciclos de directorios.
+                break
+            if candidate.suffix.lower() != ".gguf":
                 continue
-            path = candidate.resolve()
+            # El archivo puede desaparecer o bloquearse durante rglob/is_file/resolve.
+            # Omitir solo esa entrada; nunca modificar pesos ni rutas externas.
+            try:
+                if not candidate.is_file():
+                    continue
+                path = candidate.resolve()
+            except (OSError, RuntimeError):
+                # Enlaces simbólicos cíclicos pueden producir RuntimeError en resolve().
+                continue
             if path.is_relative_to(self.models_dir):
                 found.append(path)
         return sorted(found, key=lambda p: str(p).casefold())
@@ -117,13 +133,20 @@ class LocalLlamaEngine:
     def models(self):
         with self._lock:
             loaded = self._model if self._ready() else None
-            return [
-                {"key": mid, "name": path.stem, "type": "llm", "format": "GGUF",
-                 "size_bytes": path.stat().st_size,
-                 "source": "llama.cpp-local",
-                 "loaded_instances": ([{"id": mid}] if mid == loaded else [])}
-                for mid, path in self._inventory().items()
-            ]
+            catalog = []
+            for mid, path in self._inventory().items():
+                # Un GGUF puede desaparecer entre rglob() y stat() (descarga,
+                # renombrado o unidad desconectada). No tumbar /v1/models.
+                try:
+                    size = path.stat().st_size
+                except OSError:
+                    continue
+                catalog.append({
+                    "key": mid, "name": path.stem, "type": "llm", "format": "GGUF",
+                    "size_bytes": size, "source": "llama.cpp-local",
+                    "loaded_instances": ([{"id": mid}] if mid == loaded else []),
+                })
+            return catalog
 
     def load(self, model, params):
         params = valid_params(params, LOAD_PARAMS)
@@ -137,6 +160,13 @@ class LocalLlamaEngine:
                 raise ValueError("Selecciona un GGUF disponible del catálogo local")
             if self._model == model and self._ready():
                 return {"status": "loaded", "instance_id": model, "engine": "llama.cpp-local"}
+            # No descargar un modelo funcional si el GGUF seleccionado desaparecio
+            # entre el inventario y la carga (por ejemplo, unidad desconectada).
+            try:
+                if not path.is_file():
+                    raise ModelOffline("El GGUF seleccionado ya no esta disponible; actualiza el catalogo")
+            except OSError as exc:
+                raise ModelOffline("No se puede acceder al GGUF seleccionado; verifica la unidad y permisos") from exc
             self._stop()
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))
