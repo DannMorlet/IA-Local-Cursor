@@ -125,6 +125,23 @@ public static class MatickLauncherProbe {
                 (Get-Location).Path -ne $savedLocation) {
                 throw 'El launcher no conserva configuración externa o directorio del llamador'
             }
+            # Reject unsafe URLs inherited from the caller before launching the EXE.
+            $env:MATICK_CLOUD_URL = 'http://remote.example.test:8787'
+            Remove-Item -LiteralPath $probeResult -ErrorAction SilentlyContinue
+            $rejected = $false
+            try {
+                . $fixtureScript | Out-Null
+            } catch {
+                $rejected = $_.Exception.Message -match 'Solo se permite HTTP en localhost o HTTPS remoto'
+            }
+            if (-not $rejected -or (Test-Path -LiteralPath $probeResult)) {
+                throw 'Unsafe inherited HTTP URL was accepted or executable was launched'
+            }
+            if ($env:MATICK_CLOUD_URL -ne 'http://remote.example.test:8787') {
+                throw 'Validation modified the caller environment'
+            }
+            $env:MATICK_CLOUD_URL = 'https://caller.example.test'
+            Write-Host 'PASS: inherited nonlocal HTTP URL rejected without launching'
             Write-Host 'PASS: URL opcional permite backend local y conserva configuración externa'
         } finally {
             $env:MATICK_CLOUD_URL = $savedCloudUrl
