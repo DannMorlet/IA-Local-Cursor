@@ -27,6 +27,7 @@ foreach ($relative in @(
     'cloud/matick_cloud/provider.py',
     'cloud/matick_cloud/local_inference.py',
     'tools/install_llamacpp_engine.ps1',
+    'tools/INSTALAR_MOTOR_LOCAL.cmd',
     'docs/INFERENCIA_LLAMA_CPP.md',
     'cloud/matick_cloud/models.py',
     'cloud/matick_cloud/tasks.py',
