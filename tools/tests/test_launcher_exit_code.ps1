@@ -116,6 +116,27 @@ try {
         (Get-Location).Path -ne $previousLocation) {
         throw 'LOCALAPPDATA ausente alteró entorno o directorio tras fallar el EXE.'
     }
+    # Portable source-tree layout: launcher script lives in tools/ and EXE in parent.
+    # Both paths contain spaces; the EXE stub still exits 17, proving it ran.
+    $nestedTools = Join-Path $root 'sub folder'
+    New-Item -ItemType Directory -Path $nestedTools -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $root 'start_matick_portable.ps1') -Destination (Join-Path $nestedTools 'start_matick_portable.ps1')
+    $env:LOCALAPPDATA = $previousLocalAppData
+    $env:MATICK_CLOUD_URL = 'http://127.0.0.1:18776'
+    $nestedFailure = $null
+    try {
+        & (Join-Path $nestedTools 'start_matick_portable.ps1') -SafeMode
+    } catch {
+        $nestedFailure = $_.Exception.Message
+    }
+    if ($nestedFailure -notmatch 'código de salida 17') {
+        throw ('Layout EXE padre con espacios no ejecutó el binario: ' + $nestedFailure)
+    }
+    if ((Get-Location).Path -ne $previousLocation -or
+        $env:MATICK_RENDERER -ne 'dx12' -or
+        $env:MATICK_CLOUD_URL -ne 'http://127.0.0.1:18776') {
+        throw 'Layout EXE padre no restauró entorno o directorio.'
+    }
     Write-Host 'APROBADO: código de salida y restauración de entorno/directorio.'
 } finally {
     $env:MATICK_CLOUD_URL = $previousCloudUrl
