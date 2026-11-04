@@ -4,6 +4,7 @@ $root = Join-Path ([IO.Path]::GetTempPath()) ('Matick launcher smoke ' + [guid]:
 $previousCloudUrl = $env:MATICK_CLOUD_URL
 $previousToken = $env:MATICK_TOKEN
 $previousRenderer = $env:MATICK_RENDERER
+$previousLocalAppData = $env:LOCALAPPDATA
 $previousLocation = (Get-Location).Path
 New-Item -ItemType Directory -Path $root -Force | Out-Null
 try {
@@ -63,12 +64,24 @@ try {
         $env:MATICK_RENDERER -ne 'dx12' -or (Get-Location).Path -ne $previousLocation) {
         throw 'El launcher no restauró el entorno tras utilizar -CloudUrl explícita.'
     }
+    # A missing LOCALAPPDATA must not hide the native exit code 17.
     $env:MATICK_CLOUD_URL = 'http://127.0.0.1:18776'
+    $env:LOCALAPPDATA = $null
+    $missingAppDataFailure = $null
+    try {
+        & (Join-Path $root 'start_matick_portable.ps1') -SafeMode
+    } catch {
+        $missingAppDataFailure = $_.Exception.Message
+    }
+    if ($missingAppDataFailure -notmatch 'código de salida 17') {
+        throw ('LOCALAPPDATA ausente ocultó el error nativo: ' + $missingAppDataFailure)
+    }
     Write-Host 'APROBADO: código de salida y restauración de entorno/directorio.'
 } finally {
     $env:MATICK_CLOUD_URL = $previousCloudUrl
     $env:MATICK_TOKEN = $previousToken
     $env:MATICK_RENDERER = $previousRenderer
+    $env:LOCALAPPDATA = $previousLocalAppData
     Set-Location -LiteralPath $previousLocation
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
