@@ -48,6 +48,38 @@ try {
     if ((Get-Location).Path -ne $previousLocation -or $env:MATICK_RENDERER -ne 'dx12') {
         throw 'El rechazo de URL alteró el directorio o renderizador del llamador.'
     }
+    # URL credentials must not be accepted: the launcher uses MATICK_TOKEN.
+    # The native stub would return 17 if URL validation failed to run first.
+    foreach ($unsafeUrl in @('https://user:pass@example.com/v1', 'https://example.com/v1#secret', 'https:///', 'http://example.com/v1')) {
+        $env:MATICK_CLOUD_URL = $unsafeUrl
+        $unsafeMessage = $null
+        try {
+            & (Join-Path $root 'start_matick_portable.ps1') -SafeMode
+        } catch {
+            $unsafeMessage = $_.Exception.Message
+        }
+        if ($unsafeMessage -notmatch 'Solo se permite HTTP en localhost o HTTPS remoto') {
+            throw ('URL insegura no rechazada antes de iniciar EXE: ' + $unsafeUrl + ' -> ' + $unsafeMessage)
+        }
+        if ($env:MATICK_CLOUD_URL -ne $unsafeUrl -or $env:MATICK_RENDERER -ne 'dx12' -or
+            (Get-Location).Path -ne $previousLocation) {
+            throw ('Rechazo de URL alteró entorno: ' + $unsafeUrl)
+        }
+    }
+    # A loopback URL with a path is valid for a REST v1 endpoint.
+    $env:MATICK_CLOUD_URL = 'http://127.0.0.1:18776/v1'
+    $loopbackFailure = $null
+    try {
+        & (Join-Path $root 'start_matick_portable.ps1') -SafeMode
+    } catch {
+        $loopbackFailure = $_.Exception.Message
+    }
+    if ($loopbackFailure -notmatch 'código de salida 17') {
+        throw ('Ruta REST local rechazada inesperadamente: ' + $loopbackFailure)
+    }
+    if ($env:MATICK_CLOUD_URL -ne 'http://127.0.0.1:18776/v1') {
+        throw 'El launcher no restauró URL local con ruta.'
+    }
     # An explicit safe URL must override an unsafe inherited value without
     # permanently changing the environment, even if the native process fails.
     $env:MATICK_CLOUD_URL = 'http://example.invalid:18776'
