@@ -93,7 +93,8 @@ class LocalLlamaEngine:
                 if not candidate.is_file():
                     continue
                 path = candidate.resolve()
-            except OSError:
+            except (OSError, RuntimeError):
+                # Enlaces simbólicos cíclicos pueden producir RuntimeError en resolve().
                 continue
             if path.is_relative_to(self.models_dir):
                 found.append(path)
