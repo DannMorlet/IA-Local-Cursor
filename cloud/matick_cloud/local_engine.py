@@ -72,7 +72,11 @@ class LocalLlamaEngine:
         return ""
 
     def _files(self):
-        if not self.models_dir.is_dir():
+        try:
+            if not self.models_dir.is_dir():
+                return []
+        except (OSError, RuntimeError):
+            # La raíz puede desaparecer o volverse inaccesible antes de rglob.
             return []
         found = []
         # rglob puede fallar mientras recorre unidades removibles o carpetas
