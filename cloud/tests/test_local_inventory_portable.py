@@ -126,6 +126,26 @@ class PortableInventoryTests(TestCase):
 
             self.assertEqual(healthy.read_bytes(), b"GGUF-untouched")
 
+    def test_root_disappears_during_is_dir_check(self):
+        with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
+            root = Path(temp)
+            models_dir = root / "models"
+            models_dir.mkdir()
+            healthy = models_dir / "preservado.gguf"
+            healthy.write_bytes(b"GGUF-untouched")
+            engine = LocalLlamaEngine(root, models_dir=models_dir)
+            original_is_dir = Path.is_dir
+
+            def inaccessible_root(path):
+                if path == models_dir:
+                    raise PermissionError("unidad desconectada")
+                return original_is_dir(path)
+
+            with patch.object(Path, "is_dir", inaccessible_root):
+                self.assertEqual(engine.models(), [])
+
+            self.assertEqual(healthy.read_bytes(), b"GGUF-untouched")
+
     def test_directory_iterator_failure_keeps_previously_found_models(self):
         with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
             root = Path(temp)
