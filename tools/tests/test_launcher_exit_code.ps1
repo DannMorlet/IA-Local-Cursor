@@ -40,3 +40,8 @@ try {
     Set-Location -LiteralPath $previousLocation
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
+
+# PowerShell 5.1 returns the last native process exit code even when its
+# expected failure was caught and all assertions passed. Reset it only after
+# successful completion; thrown assertions still fail the workflow.
+$global:LASTEXITCODE = 0
