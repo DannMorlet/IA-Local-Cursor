@@ -49,5 +49,10 @@ try {
 } finally {
     $env:MATICK_RENDERER = $previous
     $env:MATICK_CLOUD_URL = $previousCloudUrl
-    Write-Host ('Diagnostico visual: ' + (Join-Path $env:LOCALAPPDATA 'MatickStudioLM\logs\render.log'))
+    # Diagnostics must never mask the original native error when LOCALAPPDATA is absent.
+    if ($env:LOCALAPPDATA) {
+        Write-Host ('Diagnostico visual: ' + (Join-Path $env:LOCALAPPDATA 'MatickStudioLM\logs\render.log'))
+    } else {
+        Write-Warning 'LOCALAPPDATA no definido; consulte render.log junto al ejecutable si existe.'
+    }
 }
