@@ -44,6 +44,26 @@ class HealthAndAssetsSmokeTests(unittest.TestCase):
                     self.assertTrue(script.strip(), "app.js was empty")
                     self.assertNotIn(token.encode(), script)
 
+                # Health alone cannot prove that the UI assets are installed.
+                # Check each declared route, MIME type, content and token secrecy.
+                assets = {
+                    "/app": "text/html",
+                    "/app/style.css": "text/css",
+                    "/app/clare.css": "text/css",
+                    "/app/chat_payload.mjs": "text/javascript",
+                    "/app/clare.js": "text/javascript",
+                    "/app/clare_behavior.mjs": "text/javascript",
+                }
+                for route, mime in assets.items():
+                    with self.subTest(route=route):
+                        with urlopen(base + route, timeout=3) as response:
+                            self.assertEqual(response.status, 200)
+                            self.assertIn(mime, response.headers["Content-Type"])
+                            payload = response.read()
+                            self.assertTrue(payload.strip(), route + " was empty")
+                            self.assertNotIn(token.encode(), payload)
+                            self.assertEqual(response.headers.get("X-Content-Type-Options"), "nosniff")
+
                 # A healthy server must still refuse unauthenticated API
                 # requests; a public /health is not proof of chat access.
                 with self.assertRaises(HTTPError) as denied:
