@@ -1,5 +1,14 @@
 # Matick Studio LM ☁️ + DirectX 12
 
+## Motor GGUF local desde GitHub — llama.cpp (en pruebas)
+
+Se añadió una **integración opcional real** para Windows con [llama.cpp](https://github.com/ggml-org/llama.cpp), independiente de LM Studio. Tras instalar binarios oficiales verificados y elegir un GGUF, el backend Python inicia llama-server como proceso hijo enlazado exclusivamente a localhost y lo detiene al cerrarse. Matick Core utiliza el proveedor de chat OpenAI-compatible existente. Si el usuario configuró un proveedor propio, se respeta.
+
+**Importante:** los modelos y binarios no se incluyen en este repositorio, ni en el EXE DX12 original. La instalación es un acto explícito en Windows; no se instalan drivers. Rama inicial en desarrollo: requiere validación local de CUDA/GGUF y pruebas del instalador.
+
+Guía: [instalación, respaldo y reversión](docs/INFERENCIA_LLAMA_CPP.md). Script: [tools/install_llamacpp_engine.ps1](tools/install_llamacpp_engine.ps1).
+
+
 **Repositorio oficial del nuevo proyecto Matick Studio LM en la nube.** Es un producto independiente de LM Studio y no requiere instalar LM Studio para que su servidor de mensajes funcione.
 
 > Estado: **Matick Studio LM Cloud v1.0 — software ejecutable y comprobable**. Incluye un bus HTTP autenticado con SQLite, un proveedor HTTP de inferencia configurable, un ejecutable nativo DirectX 12 que puede enviar mensajes y un paquete portable de archivos permitidos. **No** incluye pesos/modelos, despliegue cloud 24/7, conexión real con ChatGPT/Alexa/reloj, agente Codex que ejecuta código ni un instalador firmado.

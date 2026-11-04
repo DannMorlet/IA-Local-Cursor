@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import __version__
 from .provider import OpenAICompatibleProvider, ProviderResponseError, ProviderUnavailable
+from .local_inference import LlamaCppSidecar, LocalInferenceError
 from .models import RestV1Bridge, ModelState, ModelOffline, ModelError, valid_params, PARAMS, LOAD_PARAMS, valid_model_id
 from .tasks import TaskStore
 
@@ -440,14 +441,29 @@ def main() -> None:
     host = os.environ.get("MATICK_HOST", "127.0.0.1")
     port = int(os.environ.get("MATICK_PORT", "8787"))
     db_path = os.environ.get("MATICK_DB_PATH", "./matick-events.db")
-    server = MatickHTTPServer((host, port), EventStore(db_path), tokens)
-    print("Matick Studio LM Cloud %s escuchando en %s:%d" % (__version__, host, port), flush=True)
+    inference = None
     try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("Servidor detenido")
+        try:
+            inference = LlamaCppSidecar.from_env()
+            if inference is not None:
+                inference.start()
+                print("Motor GGUF llama.cpp iniciado en localhost; puede tardar en cargar los pesos.", flush=True)
+        except (LocalInferenceError, OSError, ValueError) as exc:
+            inference = None
+            # Mostrar motivo seguro; nunca imprimir la ruta del modelo ni credenciales.
+            print("Motor GGUF no iniciado: %s" % exc, flush=True)
+        # Iniciar API incluso cuando el modelo está ausente o es incompatible.
+        server = MatickHTTPServer((host, port), EventStore(db_path), tokens)
+        print("Matick Studio LM Cloud %s escuchando en %s:%d" % (__version__, host, port), flush=True)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("Servidor detenido")
+        finally:
+            server.server_close()
     finally:
-        server.server_close()
+        if inference is not None:
+            inference.stop()
 
 
 if __name__ == "__main__":
