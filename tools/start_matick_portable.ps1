@@ -20,9 +20,17 @@ $previousCloudUrl = $env:MATICK_CLOUD_URL
 # Validate inherited settings as well as explicit arguments before starting the EXE.
 # An unsafe inherited HTTP URL must never silently redirect an authenticated chat.
 $effectiveCloudUrl = if ($explicitCloudUrl) { $CloudUrl } else { $previousCloudUrl }
-if ($effectiveCloudUrl -and $effectiveCloudUrl -notmatch '^https://[^\s]+$' -and
-    $effectiveCloudUrl -notmatch '^http://(127\.0\.0\.1|localhost)(:\d+)?/?$') {
-    throw 'Solo se permite HTTP en localhost o HTTPS remoto.'
+if ($effectiveCloudUrl) {
+    $parsedUrl = $null
+    $validAbsoluteUrl = [Uri]::TryCreate($effectiveCloudUrl, [UriKind]::Absolute, [ref]$parsedUrl)
+    $loopbackHost = $validAbsoluteUrl -and $parsedUrl.Host -in @('127.0.0.1', 'localhost', '::1')
+    $allowedScheme = $validAbsoluteUrl -and (
+        $parsedUrl.Scheme -eq 'https' -or ($parsedUrl.Scheme -eq 'http' -and $loopbackHost)
+    )
+    # Do not allow embedded URL credentials: tokens belong in MATICK_TOKEN.
+    if (-not $allowedScheme -or $parsedUrl.UserInfo -or $parsedUrl.Fragment) {
+        throw 'Solo se permite HTTP en localhost o HTTPS remoto, sin credenciales ni fragmentos en URL.'
+    }
 }
 if ($explicitCloudUrl) { $env:MATICK_CLOUD_URL = $CloudUrl }
 if ($env:MATICK_CLOUD_URL -and -not $env:MATICK_TOKEN) {
