@@ -75,8 +75,15 @@ class LocalLlamaEngine:
         if not self.models_dir.is_dir():
             return []
         found = []
-        for candidate in self.models_dir.rglob("*"):
-            if len(found) >= 300:
+        # rglob puede fallar mientras recorre unidades removibles o carpetas
+        # inaccesibles. Conservar las entradas ya encontradas y no devolver 500.
+        iterator = iter(self.models_dir.rglob("*"))
+        while len(found) < 300:
+            try:
+                candidate = next(iterator)
+            except StopIteration:
+                break
+            except OSError:
                 break
             if candidate.suffix.lower() != ".gguf":
                 continue
