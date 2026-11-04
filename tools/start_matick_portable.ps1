@@ -16,11 +16,14 @@ if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
 $exe = (Resolve-Path -LiteralPath $exe).Path
 $exeDir = Split-Path -Parent $exe
 $explicitCloudUrl = $PSBoundParameters.ContainsKey('CloudUrl')
-if ($explicitCloudUrl -and $CloudUrl -notmatch '^https://[^\s]+$' -and
-    $CloudUrl -notmatch '^http://(127\.0\.0\.1|localhost)(:\d+)?/?$') {
+$previousCloudUrl = $env:MATICK_CLOUD_URL
+# Validate inherited settings as well as explicit arguments before starting the EXE.
+# An unsafe inherited HTTP URL must never silently redirect an authenticated chat.
+$effectiveCloudUrl = if ($explicitCloudUrl) { $CloudUrl } else { $previousCloudUrl }
+if ($effectiveCloudUrl -and $effectiveCloudUrl -notmatch '^https://[^\s]+$' -and
+    $effectiveCloudUrl -notmatch '^http://(127\.0\.0\.1|localhost)(:\d+)?/?$') {
     throw 'Solo se permite HTTP en localhost o HTTPS remoto.'
 }
-$previousCloudUrl = $env:MATICK_CLOUD_URL
 if ($explicitCloudUrl) { $env:MATICK_CLOUD_URL = $CloudUrl }
 if ($env:MATICK_CLOUD_URL -and -not $env:MATICK_TOKEN) {
     Write-Warning 'Falta MATICK_TOKEN en esta sesión. La interfaz abrirá, pero no podrá enviar mensajes.'
@@ -37,6 +40,9 @@ try {
     Push-Location -LiteralPath $exeDir
     try {
         & $exe
+        if ($LASTEXITCODE -ne 0) {
+            throw "MatickStudioLM.exe terminó con código de salida $LASTEXITCODE. Revise el registro render.log."
+        }
     } finally {
         Pop-Location
     }
