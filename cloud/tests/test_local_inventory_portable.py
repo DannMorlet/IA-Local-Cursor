@@ -111,6 +111,21 @@ class PortableInventoryTests(TestCase):
             self.assertEqual([item["name"] for item in catalog], ["conservado"])
             self.assertEqual(healthy.read_bytes(), b"GGUF-preserved")
 
+    def test_scan_initialization_failure_returns_empty_catalog_without_mutation(self):
+        with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
+            root = Path(temp)
+            models_dir = root / "models"
+            models_dir.mkdir()
+            healthy = models_dir / "preservado.gguf"
+            healthy.write_bytes(b"GGUF-untouched")
+            engine = LocalLlamaEngine(root, models_dir=models_dir)
+
+            # rglob puede fallar antes de entregar un iterador (unidad desconectada).
+            with patch.object(Path, "rglob", side_effect=PermissionError("unidad retirada")):
+                self.assertEqual(engine.models(), [])
+
+            self.assertEqual(healthy.read_bytes(), b"GGUF-untouched")
+
     def test_directory_iterator_failure_keeps_previously_found_models(self):
         with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
             root = Path(temp)
