@@ -68,6 +68,30 @@ class PortableInventoryTests(TestCase):
             self.assertFalse(missing.exists())
             self.assertFalse(inaccessible.exists())
 
+    def test_cyclic_gguf_resolution_keeps_healthy_model(self):
+        with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
+            root = Path(temp)
+            models_dir = root / "models"
+            models_dir.mkdir()
+            healthy = models_dir / "sano.gguf"
+            healthy.write_bytes(b"GGUF-preserved")
+            cyclic = models_dir / "ciclico.gguf"
+            cyclic.write_bytes(b"GGUF-untouched")
+            engine = LocalLlamaEngine(root, models_dir=models_dir)
+            original_resolve = Path.resolve
+
+            def simulate_cycle(path, *args, **kwargs):
+                if path == cyclic:
+                    raise RuntimeError("Symlink loop from GGUF path")
+                return original_resolve(path, *args, **kwargs)
+
+            with patch.object(Path, "resolve", simulate_cycle):
+                catalog = engine.models()
+
+            self.assertEqual([item["name"] for item in catalog], ["sano"])
+            self.assertEqual(healthy.read_bytes(), b"GGUF-preserved")
+            self.assertEqual(cyclic.read_bytes(), b"GGUF-untouched")
+
     def test_directory_iterator_failure_keeps_previously_found_models(self):
         with TemporaryDirectory(prefix="Matick Studio LM ") as temp:
             root = Path(temp)
