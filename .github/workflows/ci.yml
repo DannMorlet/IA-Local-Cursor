@@ -75,6 +75,17 @@ jobs:
       installer: ${{ steps.installer.outcome }}
     steps:
       - uses: actions/checkout@v4
+      - name: Validar sintaxis del instalador de motor local (sin descargar nada)
+        shell: pwsh
+        run: |
+          $tok = $null
+          $err = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '.\\tools\\install_llamacpp_engine.ps1').Path,
+            [ref]$tok, [ref]$err
+          ) | Out-Null
+          if ($err.Count -gt 0) { throw ($err | ForEach-Object { $_.Message } | Out-String) }
+          Write-Host 'Instalador: sintaxis PowerShell válida'
       - name: Configurar MSVC / CMake
         shell: pwsh
         run: cmake -S windows -B out/build -G "Visual Studio 17 2022" -A x64
