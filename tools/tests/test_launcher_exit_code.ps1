@@ -137,6 +137,22 @@ try {
         $env:MATICK_CLOUD_URL -ne 'http://127.0.0.1:18776') {
         throw 'Layout EXE padre no restauró entorno o directorio.'
     }
+    # HTTPS remote endpoints remain supported after tightening URL validation.
+    # A valid remote URL must reach the stub (exit 17), not fail preflight.
+    $env:MATICK_CLOUD_URL = 'https://example.com/v1'
+    $httpsFailure = $null
+    try {
+        & (Join-Path $root 'start_matick_portable.ps1') -SafeMode
+    } catch {
+        $httpsFailure = $_.Exception.Message
+    }
+    if ($httpsFailure -notmatch 'código de salida 17') {
+        throw ('HTTPS remoto válido fue rechazado o no ejecutó EXE: ' + $httpsFailure)
+    }
+    if ($env:MATICK_CLOUD_URL -ne 'https://example.com/v1' -or
+        $env:MATICK_RENDERER -ne 'dx12' -or (Get-Location).Path -ne $previousLocation) {
+        throw 'HTTPS remoto válido no restauró el entorno o directorio.'
+    }
     Write-Host 'APROBADO: código de salida y restauración de entorno/directorio.'
 } finally {
     $env:MATICK_CLOUD_URL = $previousCloudUrl
