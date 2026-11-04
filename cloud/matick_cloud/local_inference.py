@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import re
 import socket
 import subprocess
 import sys
@@ -42,7 +41,8 @@ class LlamaCppSidecar:
     def from_env(cls, env: dict[str, str] | None = None) -> "LlamaCppSidecar | None":
         env = os.environ if env is None else env
         # Jamás sobreescribir un proveedor de inferencia elegido por el usuario.
-        if env.get("MATICK_MODEL_BASE_URL") or env.get("MATICK_MODEL_ID"):
+        if (env.get("MATICK_MODEL_BASE_URL") or env.get("MATICK_MODEL_ID")
+                or env.get("MATICK_REST_V1_URL")):
             return None
         # No correr un motor local junto a un servidor expuesto fuera del equipo.
         if env.get("MATICK_HOST", "127.0.0.1") not in ("127.0.0.1", "localhost", "::1"):
@@ -60,8 +60,10 @@ class LlamaCppSidecar:
             raise LocalInferenceError("Backend local no reconocido")
         home = path.parent.resolve()
         engines = (home / "engines").resolve()
-        exe = Path(data.get("executable", "")).resolve()
-        model = Path(data.get("model_path", "")).resolve()
+        if not isinstance(data.get("executable"), str) or not isinstance(data.get("model_path"), str):
+            raise LocalInferenceError("Las rutas del motor y GGUF deben ser texto")
+        exe = Path(data["executable"]).resolve()
+        model = Path(data["model_path"]).resolve()
         # Restringir el ejecutable al directorio de versiones instaladas
         # por Matick, aunque el modelo GGUF sí puede estar en cualquier carpeta.
         if exe.name.lower() != "llama-server.exe" or not exe.is_relative_to(engines):
