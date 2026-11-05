@@ -38,6 +38,15 @@ class MissingAssetSmokeTests(TestCase):
                     self.assertIn("error", payload)
                     self.assertEqual(missing.exception.headers.get("X-Content-Type-Options"), "nosniff")
 
+                # A zero-byte bundle is equally damaging: reject it rather
+                # than serving HTTP 200 with a blank script.
+                with patch.object(Path, "read_bytes", return_value=b""):
+                    with self.assertRaises(HTTPError) as empty:
+                        urlopen(base + "/app/app.js", timeout=3)
+                    self.assertEqual(empty.exception.code, 503)
+                    self.assertIn("vacío", json.loads(empty.exception.read())["error"])
+                    self.assertEqual(empty.exception.headers.get("X-Content-Type-Options"), "nosniff")
+
                 # Recovery must work in the same running server once the
                 # simulated missing asset is restored. Otherwise a cached
                 # failure can keep the installed window blank until restart.
