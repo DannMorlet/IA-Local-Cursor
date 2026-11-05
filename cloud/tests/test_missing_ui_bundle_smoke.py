@@ -63,7 +63,7 @@ class MissingAssetSmokeTests(TestCase):
                     "/app/chat_payload.mjs", "/app/clare_behavior.mjs",
                 ):
                     with self.subTest(blank_asset=route):
-                        with patch.object(Path, "read_bytes", return_value=b" \\t\\r\\n"):
+                        with patch.object(Path, "read_bytes", return_value=b" \t\r\n"):
                             with self.assertRaises(HTTPError) as damaged:
                                 urlopen(base + route, timeout=3)
                             self.assertEqual(damaged.exception.code, 503)
