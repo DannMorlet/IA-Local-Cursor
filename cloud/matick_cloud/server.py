@@ -184,6 +184,11 @@ class MatickHandler(BaseHTTPRequestHandler):
             except OSError:
                 self._respond(HTTPStatus.NOT_FOUND, {"error": "Panel no instalado"})
                 return
+            if not payload:
+                # An empty installed asset must not report success: browsers
+                # otherwise render a blank window while /health stays green.
+                self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "Recurso de interfaz vacío: " + filename})
+                return
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", mime)
             self.send_header("Cache-Control", "no-store")
