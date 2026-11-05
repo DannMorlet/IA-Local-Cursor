@@ -55,6 +55,24 @@ class MissingAssetSmokeTests(TestCase):
                     self.assertEqual(blank.exception.code, 503)
                     self.assertIn("vacío", json.loads(blank.exception.read())["error"])
 
+                # Every text asset must reject whitespace-only content.
+                # Checking only app.js misses blank HTML, CSS or Clare modules.
+                for route in (
+                    "/app", "/app/app.js", "/app/style.css",
+                    "/app/clare.css", "/app/clare.js",
+                    "/app/chat_payload.mjs", "/app/clare_behavior.mjs",
+                ):
+                    with self.subTest(blank_asset=route):
+                        with patch.object(Path, "read_bytes", return_value=b" \\t\\r\\n"):
+                            with self.assertRaises(HTTPError) as damaged:
+                                urlopen(base + route, timeout=3)
+                            self.assertEqual(damaged.exception.code, 503)
+                            self.assertIn("vacío", json.loads(damaged.exception.read())["error"])
+                            self.assertEqual(
+                                damaged.exception.headers.get("X-Content-Type-Options"),
+                                "nosniff",
+                            )
+
                 # Recovery must work in the same running server once the
                 # simulated missing asset is restored. Otherwise a cached
                 # failure can keep the installed window blank until restart.
