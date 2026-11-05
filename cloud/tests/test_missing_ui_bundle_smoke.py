@@ -38,6 +38,17 @@ class MissingAssetSmokeTests(TestCase):
                     self.assertIn("error", payload)
                     self.assertEqual(missing.exception.headers.get("X-Content-Type-Options"), "nosniff")
 
+                # Recovery must work in the same running server once the
+                # simulated missing asset is restored. Otherwise a cached
+                # failure can keep the installed window blank until restart.
+                with urlopen(base + "/app/app.js", timeout=3) as recovered:
+                    self.assertEqual(recovered.status, 200)
+                    self.assertIn("javascript", recovered.headers["Content-Type"])
+                    self.assertTrue(recovered.read().strip(), "restored app.js is empty")
+                    self.assertEqual(
+                        recovered.headers.get("X-Content-Type-Options"), "nosniff"
+                    )
+
                 # A healthy backend is not evidence that all UI assets exist.
                 with urlopen(base + "/health", timeout=3) as response:
                     self.assertEqual(response.status, 200)
