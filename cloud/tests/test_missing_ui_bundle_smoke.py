@@ -40,7 +40,7 @@ class MissingAssetSmokeTests(TestCase):
 
                 # A zero-byte bundle is equally damaging: reject it rather
                 # than serving HTTP 200 with a blank script.
-                with patch.object(Path, "read_bytes", return_value=b""):
+                with patch.object(Path, "read_bytes", return_value=b"   "):
                     with self.assertRaises(HTTPError) as empty:
                         urlopen(base + "/app/app.js", timeout=3)
                     self.assertEqual(empty.exception.code, 503)
