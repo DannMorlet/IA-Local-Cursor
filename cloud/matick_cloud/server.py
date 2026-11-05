@@ -202,6 +202,28 @@ class MatickHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload)
             return
+        if route.path == "/health/ui":
+            # Launcher preflight: backend health alone does not prove that
+            # packaged HTML/JS/CSS assets are usable. Never expose paths.
+            required = ("index.html", "app.js", "chat_payload.mjs",
+                        "style.css", "clare.css", "clare.js",
+                        "clare_behavior.mjs")
+            web_dir = Path(__file__).parent / "web"
+            damaged = []
+            for filename in required:
+                try:
+                    if not (web_dir / filename).read_bytes().strip():
+                        damaged.append(filename)
+                except OSError:
+                    damaged.append(filename)
+            if damaged:
+                self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {
+                    "status": "degraded", "error": "Recursos de interfaz ausentes o vacíos",
+                    "assets": damaged,
+                })
+            else:
+                self._respond(HTTPStatus.OK, {"status": "ok", "assets_checked": len(required)})
+            return
         if route.path == "/health":
             self._respond(HTTPStatus.OK, {"service": "matick-studio-lm-cloud", "version": __version__, "status": "ok"})
             return
