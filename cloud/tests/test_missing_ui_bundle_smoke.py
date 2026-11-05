@@ -47,6 +47,14 @@ class MissingAssetSmokeTests(TestCase):
                     self.assertIn("vacío", json.loads(empty.exception.read())["error"])
                     self.assertEqual(empty.exception.headers.get("X-Content-Type-Options"), "nosniff")
 
+                # A whitespace-only bundle is nonempty but still cannot render
+                # a functional UI. The server must reject it explicitly.
+                with patch.object(Path, "read_bytes", return_value=b" \\t\\r\\n  "):
+                    with self.assertRaises(HTTPError) as blank:
+                        urlopen(base + "/app/app.js", timeout=3)
+                    self.assertEqual(blank.exception.code, 503)
+                    self.assertIn("vacío", json.loads(blank.exception.read())["error"])
+
                 # Recovery must work in the same running server once the
                 # simulated missing asset is restored. Otherwise a cached
                 # failure can keep the installed window blank until restart.
