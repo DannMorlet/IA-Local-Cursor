@@ -126,9 +126,14 @@ class OpenAICompatibleProvider:
                 # JavaScript chat clients cannot represent larger integers exactly.
                 if type(count) is int and 0 <= count <= (1 << 53) - 1:
                     stats[target] = count
+        # Never silently present a shortened answer as complete inference.
+        # The client can surface this flag and offer a retry with fewer tokens.
+        truncated = len(content) > 12000
+        if truncated:
+            stats["output_truncated"] = True
         return {
             "model": self.model,
-            "content": content[:12000],
+            "content": (content[:11950] + "\n[Respuesta recortada: el proveedor excedió el límite de visualización]") if truncated else content,
             "stats": stats,
             "parameters_forwarded": sorted(forwarded),
             "parameters_not_forwarded": not_forwarded,
