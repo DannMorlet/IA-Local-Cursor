@@ -1,0 +1,35 @@
+name: Matick Sync Bridge - pruebas locales
+
+on:
+  push:
+    paths:
+      - 'sync_bridge/**'
+      - '.github/workflows/matick-sync-bridge.yml'
+  pull_request:
+    paths:
+      - 'sync_bridge/**'
+      - '.github/workflows/matick-sync-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync-tests:
+    name: Sync Bridge Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compilar
+        run: python -m compileall -q sync_bridge
+      - name: Pruebas automatizadas sin redes externas ni secretos
+        env:
+          PYTHONPATH: sync_bridge
+        run: python -m unittest discover -s sync_bridge/tests -v
