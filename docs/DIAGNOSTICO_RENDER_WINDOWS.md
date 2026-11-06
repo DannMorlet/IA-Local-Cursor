@@ -41,7 +41,7 @@ Para probar el modo normal:
 .\tools\start_matick_portable.ps1
 ```
 
-El estado de la interfaz se muestra dentro de la ventana: `DirectX 12 operativo` o `modo seguro GDI`.
+El estado de la interfaz se muestra dentro de la ventana. Por defecto Matick usa GDI nativo, que mantiene visibles todos los controles; DirectX 12 es opcional con `MATICK_RENDERER=dx12` (su swapchain puede ocultar los controles Win32 tras el primer cuadro).
 
 ## Qué significa una ventana visible
 

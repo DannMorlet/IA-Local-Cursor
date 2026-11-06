@@ -23,8 +23,8 @@ using Microsoft::WRL::ComPtr;
 
 namespace {
 constexpr UINT kFrames = 2;
-constexpr UINT kWidth = 1500;
-constexpr UINT kHeight = 850;
+UINT gWidth = kDesignWidth;   // tamaño de cliente real tras aplicar escala
+UINT gHeight = kDesignHeight;
 constexpr UINT kHealthMessage = WM_APP + 1;
 constexpr UINT kChatSendMessage = WM_APP + 2;
 constexpr UINT kChatCompleteMessage = WM_APP + 3;
@@ -66,8 +66,8 @@ struct Renderer {
         Check(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&queue)));
 
         DXGI_SWAP_CHAIN_DESC1 swapDesc = {};
-        swapDesc.Width = kWidth;
-        swapDesc.Height = kHeight;
+        swapDesc.Width = gWidth;
+        swapDesc.Height = gHeight;
         swapDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         swapDesc.SampleDesc.Count = 1;
         swapDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -149,13 +149,16 @@ struct Renderer {
         const FLOAT rightCard[4] = {0.070f, 0.109f, 0.181f, 1.0f};
 
         const auto fill = [&](const FLOAT* color, LONG l, LONG t, LONG r, LONG bot) {
-            const RECT region{l, t, r, bot};
+            const RECT region{
+                static_cast<LONG>(MatickScale(l)), static_cast<LONG>(MatickScale(t)),
+                r >= kDesignWidth ? static_cast<LONG>(gWidth) : static_cast<LONG>(MatickScale(r)),
+                bot >= kDesignHeight ? static_cast<LONG>(gHeight) : static_cast<LONG>(MatickScale(bot))};
             commands->ClearRenderTargetView(rtv, color, 1, &region);
         };
         commands->ClearRenderTargetView(rtv, background, 0, nullptr);
-        fill(workspace, 290, 66, 1180, static_cast<LONG>(kHeight));
-        fill(sidebar, 0, 66, 290, static_cast<LONG>(kHeight));
-        fill(topbar, 0, 0, static_cast<LONG>(kWidth), 66);
+        fill(workspace, 290, 66, 1180, kDesignHeight);
+        fill(sidebar, 0, 66, 290, kDesignHeight);
+        fill(topbar, 0, 0, kDesignWidth, 66);
         fill(white, 308, 91, 1164, 417);
         fill(accent, 308, 91, 1164, 95);
         fill(white, 308, 457, 862, 675);
@@ -377,11 +380,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
         return 1;
     }
 
-    RECT bounds = {0, 0, static_cast<LONG>(kWidth), static_cast<LONG>(kHeight)};
-    constexpr DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
-    AdjustWindowRect(&bounds, style, FALSE);
+    constexpr DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
+    MatickInitScale(style);
+    gWidth = static_cast<UINT>(MatickScale(kDesignWidth));
+    gHeight = static_cast<UINT>(MatickScale(kDesignHeight));
+    RECT bounds = {0, 0, static_cast<LONG>(gWidth), static_cast<LONG>(gHeight)};
+    AdjustWindowRectExForDpi(&bounds, style, FALSE, 0, GetDpiForSystem());
     HWND window = CreateWindowExW(
-        0, cls.lpszClassName, L"Matick Studio LM | DirectX 12 + Cloud",
+        0, cls.lpszClassName, L"Matick Studio LM",
         style, CW_USEDEFAULT, CW_USEDEFAULT,
         bounds.right - bounds.left, bounds.bottom - bounds.top,
         nullptr, nullptr, instance, &renderer
@@ -402,9 +408,12 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     MatickBackend backend;
     backend.StartIfBundled();
 
-    const bool forceGdi = MatickPreferGDI();
-    if (forceGdi) {
+    // GDI es el modo por defecto: con un swapchain DX12 (flip model) sobre la
+    // ventana, Windows oculta los controles Win32 tras el primer cuadro.
+    if (MatickPreferGDI()) {
         MatickLog(L"GDI_SAFE_MODE_USER_SELECTED");
+    } else if (!MatickWantDX12()) {
+        MatickLog(L"GDI_DEFAULT_RENDERER");
     } else {
         try {
             MatickLog(L"DX12_INIT_BEGIN");

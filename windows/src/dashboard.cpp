@@ -3,6 +3,7 @@
 // esta capa Win32 dibuja textos, controles accesibles y una mascota vectorial.
 #include "dashboard.h"
 #include "chat_transport.h"
+#include "render_safety.h"
 #include <shellapi.h>
 #include <string>
 #include <vector>
@@ -34,7 +35,7 @@ UINT gTick = 0;
 bool gCloudHealthy = false;
 
 HFONT NewFont(int pixelSize, int weight = FW_NORMAL) {
-    HFONT font = CreateFontW(-pixelSize, 0, 0, 0, weight,
+    HFONT font = CreateFontW(-MatickScale(pixelSize), 0, 0, 0, weight,
         FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
         CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
         DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
@@ -47,7 +48,7 @@ HWND Label(HWND parent, HINSTANCE instance, UINT id, const wchar_t* text,
     int weight = FW_NORMAL) {
     HWND widget = CreateWindowExW(0, L"STATIC", text,
         WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOTIFY | SS_NOPREFIX,
-        x, y, width, height, parent,
+        MatickScale(x), MatickScale(y), MatickScale(width), MatickScale(height), parent,
         reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), instance, nullptr);
     SendMessageW(widget, WM_SETFONT,
         reinterpret_cast<WPARAM>(NewFont(pixelSize, weight)), TRUE);
@@ -77,6 +78,11 @@ LRESULT CALLBACK MascotProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             RECT area{};
             GetClientRect(window, &area);
             FillRect(dc, &area, gRightBrush);
+            // Las coordenadas del avatar están en unidades de diseño 282x298.
+            SetMapMode(dc, MM_ANISOTROPIC);
+            SetWindowExtEx(dc, 282, 298, nullptr);
+            SetViewportExtEx(dc, area.right > 0 ? area.right : 282,
+                             area.bottom > 0 ? area.bottom : 298, nullptr);
 
             HPEN quietPen = CreatePen(PS_SOLID, 2, RGB(16, 101, 160));
             HPEN glowPen = CreatePen(PS_SOLID, 5, kCyan);
@@ -168,10 +174,10 @@ void DashboardInstall(HWND window, HINSTANCE instance) {
     Label(window, instance, 44, L"Agentes", 668, 22, 100, 29, 18);
     Label(window, instance, 45, L"Modelos", 801, 22, 100, 29, 18);
     Label(window, instance, 46, L"Herramientas", 927, 22, 142, 29, 18);
-    Label(window, instance, 47, L"DirectX 12", 1306, 22, 156, 29, 17, FW_SEMIBOLD);
+    Label(window, instance, 47, L"Windows x64", 1306, 22, 156, 29, 17, FW_SEMIBOLD);
     HWND workButton = CreateWindowExW(0, L"BUTTON", L"Abrir Matick Work",
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
-        1097, 15, 193, 39, window, reinterpret_cast<HMENU>(250), instance, nullptr);
+        MatickScale(1097), MatickScale(15), MatickScale(193), MatickScale(39), window, reinterpret_cast<HMENU>(250), instance, nullptr);
     SendMessageW(workButton, WM_SETFONT,
         reinterpret_cast<WPARAM>(NewFont(17, FW_SEMIBOLD)), TRUE);
 
@@ -201,11 +207,11 @@ void DashboardInstall(HWND window, HINSTANCE instance) {
     Label(window, instance, 73, L"Chat en la nube  ·  requiere MATICK_TOKEN y proveedor configurado:", 328, 283, 816, 25, 15);
     gChatInput = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
-        329, 318, 641, 40, window, reinterpret_cast<HMENU>(200), instance, nullptr);
+        MatickScale(329), MatickScale(318), MatickScale(641), MatickScale(40), window, reinterpret_cast<HMENU>(200), instance, nullptr);
     SendMessageW(gChatInput, WM_SETFONT, reinterpret_cast<WPARAM>(NewFont(18)), TRUE);
     HWND send = CreateWindowExW(0, L"BUTTON", L"Enviar",
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
-        990, 318, 132, 40, window,
+        MatickScale(990), MatickScale(318), MatickScale(132), MatickScale(40), window,
         reinterpret_cast<HMENU>(201), instance, nullptr);
     SendMessageW(send, WM_SETFONT, reinterpret_cast<WPARAM>(NewFont(17, FW_SEMIBOLD)), TRUE);
     Label(window, instance, 74, L"Chat: solo funciona al configurar un modelo. /health no prueba IA.", 329, 377, 818, 27, 16);
@@ -229,13 +235,14 @@ void DashboardInstall(HWND window, HINSTANCE instance) {
         L"Respuestas de Matick Cloud aparecerán aquí. Sin modelo configurado, se indicará el error.",
         WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_READONLY |
         ES_AUTOVSCROLL | WS_VSCROLL,
-        323, 741, 530, 61, window, reinterpret_cast<HMENU>(202), instance, nullptr);
+        MatickScale(323), MatickScale(741), MatickScale(530), MatickScale(61), window, reinterpret_cast<HMENU>(202), instance, nullptr);
     SendMessageW(gChatOutput, WM_SETFONT, reinterpret_cast<WPARAM>(NewFont(15)), TRUE);
 
     // Panel derecho: mascota y telemetría sin métricas inventadas.
     Label(window, instance, 120, L"MATICK  ·  MASCOTA", 1202, 89, 278, 30, 20, FW_BOLD);
     gMascot = CreateWindowExW(0, L"MatickMascotVector", L"",
-        WS_CHILD | WS_VISIBLE, 1202, 126, 282, 298,
+        WS_CHILD | WS_VISIBLE,
+        MatickScale(1202), MatickScale(126), MatickScale(282), MatickScale(298),
         window, nullptr, instance, nullptr);
     Label(window, instance, 121, L"¡Aquí ando!   ◡̈", 1224, 425, 238, 30, 20, FW_BOLD);
     Label(window, instance, 125, L"Parpadeo animado  ·  avatar provisional", 1204, 451, 276, 22, 13);
@@ -384,6 +391,6 @@ void DashboardSetRendererStatus(bool dx12Ready) {
     if (!gRendererStatus) return;
     SetWindowTextW(gRendererStatus, dx12Ready
         ? L"Interfaz: DirectX 12 operativo"
-        : L"Interfaz: modo seguro GDI - revisa %LOCALAPPDATA%\\MatickStudioLM\\logs\\render.log");
+        : L"Interfaz: Windows nativo (GDI). DirectX 12 opcional: MATICK_RENDERER=dx12");
     InvalidateRect(gRendererStatus, nullptr, TRUE);
 }
