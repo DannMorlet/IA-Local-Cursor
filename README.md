@@ -1,5 +1,7 @@
 # Matick Studio LM ☁️ + DirectX 12
 
+> 📚 **Organización y limpieza 2026-11-06:** [Orden de Matick Studio LM y revisión de PR](docs/ORDEN_Y_LIMPIEZA_2026-11-06.md). PR y ramas preservados; consulta el plan antes de fusionar.
+
 **Repositorio oficial del nuevo proyecto Matick Studio LM en la nube.** Es un producto independiente de LM Studio y no requiere instalar LM Studio para que su servidor de mensajes funcione.
 
 > Estado: **Matick Studio LM Cloud v1.0 — software ejecutable y comprobable**. Incluye un bus HTTP autenticado con SQLite, un proveedor HTTP de inferencia configurable, un ejecutable nativo DirectX 12 que puede enviar mensajes y un paquete portable de archivos permitidos. **No** incluye pesos/modelos, despliegue cloud 24/7, conexión real con ChatGPT/Alexa/reloj, agente Codex que ejecuta código ni un instalador firmado.
