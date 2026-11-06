@@ -3,7 +3,7 @@
 param([string]$OutputDir='out\setup')
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$setup=(Resolve-Path (Join-Path $root "$OutputDir\MatickStudioLM-v1.0.1-x64-Setup.exe")).Path
+$setup=(Resolve-Path (Join-Path $root "$OutputDir\MatickStudioLM-v1.2.0-x64-Setup.exe")).Path
 $sandbox=Join-Path $env:RUNNER_TEMP 'MatickInstallerSandbox'
 $external=Join-Path $env:RUNNER_TEMP 'Matick-No-Tocar'
 New-Item -ItemType Directory $external -Force | Out-Null
@@ -25,6 +25,18 @@ foreach ($file in $clareFiles) {
         throw "Falta recurso de Mini Clare en el instalador: $file"
     }
 }
+$engineFile=Join-Path $sandbox 'cloud\matick_cloud\local_engine.py'
+if(-not (Test-Path -LiteralPath $engineFile)) {
+  throw 'El instalador omitió el controlador del motor llama.cpp local.'
+}
+$llamaExe=Join-Path $sandbox 'engine\llama-server.exe'
+$llamaLicense=Join-Path $sandbox 'engine\LICENSE-llama.cpp.txt'
+if(-not (Test-Path -LiteralPath $llamaExe) -or
+   -not (Test-Path -LiteralPath $llamaLicense)) {
+  throw 'Instalador incompleto: faltan llama-server.exe o su licencia MIT.'
+}
+& $llamaExe --version
+if($LASTEXITCODE -ne 0) {throw 'llama-server.exe incluido no puede arrancar en Windows x64.'}
 $moduleFile=Join-Path $sandbox 'cloud\matick_cloud\web\chat_payload.mjs'
 if(-not (Test-Path -LiteralPath $moduleFile)) {
   throw 'El instalador omitió chat_payload.mjs: la interfaz no podrá importar el chat.'

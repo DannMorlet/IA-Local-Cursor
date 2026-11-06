@@ -42,6 +42,10 @@ jobs:
         env:
           PYTHONPATH: cloud
         run: python -m unittest discover -s cloud/tests -p test_rest_v1.py -v
+      - name: Inferencia local GGUF con proceso llama.cpp simulado
+        env:
+          PYTHONPATH: cloud
+        run: python -m unittest discover -s cloud/tests -p test_local_engine.py -v
       - name: Pruebas de tareas Work
         id: work
         env:
@@ -99,9 +103,19 @@ jobs:
             $proc.Refresh()
             if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
           }
+      - name: Recuperar motor CPU compilado y verificado
+        id: llama_cache
+        uses: actions/cache@v4
+        with:
+          path: out/llama-runtime
+          key: matick-llama-cpu-v0.8.0-8642541b-${{ hashFiles('tools/build_llama_cpu.ps1') }}
+      - name: Compilar motor llama.cpp CPU Windows x64 (MIT, SHA fijado)
+        if: steps.llama_cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: .\\tools\\build_llama_cpu.ps1
       - name: Construir paquete portable ligero
         shell: pwsh
-        run: .\\tools\\package_portable.ps1 -ExePath .\\out\\build\\Release\\MatickStudioLM.exe -OutputDir .\\out\\dist
+        run: .\\tools\\package_portable.ps1 -ExePath .\\out\\build\\Release\\MatickStudioLM.exe -OutputDir .\\out\\dist -LlamaRuntimeDir .\\out\\llama-runtime
       - name: Incorporar Python embebido x64 verificado por SHA256
         shell: pwsh
         run: .\tools\prepare_embedded_runtime.ps1 -DistPath .\out\dist
@@ -115,9 +129,9 @@ jobs:
       - name: Publicar ZIP con instalador, guía y suma SHA256
         uses: actions/upload-artifact@v4
         with:
-          name: MatickStudioLM-v1.0.1-Windows-x64-Instalador
+          name: MatickStudioLM-v1.2.0-Windows-x64-Instalador
           path: |
-            out/setup/MatickStudioLM-v1.0.1-x64-Setup.exe
+            out/setup/MatickStudioLM-v1.2.0-x64-Setup.exe
             out/setup/LEEME_INSTALADOR.md
             out/setup/SHA256SUMS.txt
           if-no-files-found: error

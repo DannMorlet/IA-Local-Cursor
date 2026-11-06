@@ -4,7 +4,7 @@
 #if BundleRoot == ""
   #error "Primero establece MATICK_PACKAGE_DIR al paquete previamente verificado."
 #endif
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.2.0"
 
 [Setup]
 AppId={{D3A69EE0-6D63-4326-9B45-723A00DCA110}
@@ -15,11 +15,11 @@ AppPublisher=Matick Project
 AppPublisherURL=https://github.com/DannMorlet/IA-Local-Cursor
 AppSupportURL=https://github.com/DannMorlet/IA-Local-Cursor/issues
 AppUpdatesURL=https://github.com/DannMorlet/IA-Local-Cursor/releases
-DefaultDirName={localappdata}\Programs\Matick Studio LM Cloud
+DefaultDirName=C:\IA\Matick Studio LM\App
 DefaultGroupName=Matick Studio LM Cloud
-DisableDirPage=yes
+DisableDirPage=no
 DisableProgramGroupPage=yes
-UsePreviousAppDir=no
+UsePreviousAppDir=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -35,7 +35,7 @@ CloseApplications=yes
 RestartApplications=no
 CreateUninstallRegKey=yes
 OutputDir=.
-OutputBaseFilename=MatickStudioLM-v1.0.1-x64-Setup
+OutputBaseFilename=MatickStudioLM-v1.2.0-x64-Setup
 DisableWelcomePage=no
 DisableReadyPage=no
 DisableFinishedPage=no

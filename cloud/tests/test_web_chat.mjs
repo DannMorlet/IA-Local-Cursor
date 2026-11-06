@@ -18,6 +18,29 @@ test("el proveedor alternativo aparece sin fingir inferencia verificada", () => 
                "REST v1 disponible");
 });
 
+
+test("el catálogo GGUF local exige cargar modelo y distingue motor instalado", () => {
+  const model={key:"local/abc123",name:"Mi Matick GGUF",size_bytes:4294967296,
+               loaded_instances:[]};
+  const inventory={provider:"llama.cpp-local",configured:true,connected:true,
+                   models:[model]};
+  assert.deepEqual(modelInventoryPresentation(inventory,{model:null}),{
+    engineStatus:"Motor llama.cpp local disponible",selectedModel:""
+  });
+  assert.equal(modelInventoryPresentation({...inventory,configured:false},{})
+    .engineStatus,"Motor local no instalado o sin configurar");
+  const base={token:"token-local",inventoryFresh:true,selected:model.key,
+              provider:"llama.cpp-local",models:[model]};
+  assert.equal(modelReadiness(base).ok,false);
+  assert.match(modelReadiness(base).reason,/NO cargado/);
+  const active={...model,loaded_instances:[{id:model.key}]};
+  assert.deepEqual(modelReadiness({...base,models:[active]}),
+    {ok:true,verifiedInference:false});
+  assert.match(modelLoadFeedback({...base,models:[active]},model.key),/llama.cpp local/);
+  assert.match(modelUnloadFeedback({...base,models:[model]},model.key,model.key),
+               /ya no reporta la instancia/);
+});
+
 const user = text => ({role: "user", content: text});
 const assistant = text => ({role: "assistant", content: text});
 

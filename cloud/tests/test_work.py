@@ -74,7 +74,7 @@ class WorkTests(unittest.TestCase):
         self.assertIn('getElementById(id)', source)
         self.assertIn('$("home-form").addEventListener("submit"', source)
         self.assertIn('$("chat-form").requestSubmit()', source)
-        self.assertIn('$("home-model-chip").textContent=state.provider==="rest-v1"', source)
+        self.assertIn('["rest-v1","llama.cpp-local"].includes(state.provider)', source)
         self.assertIn('id+" · Falta cargar"', source)
         self.assertIn('id+" · Inferencia por verificar"', source)
         self.assertIn('modelLoadFeedback(state,config.model)', source)

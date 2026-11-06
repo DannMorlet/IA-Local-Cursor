@@ -1,12 +1,12 @@
-# Matick Studio LM Cloud v1.0.1 — Instalador Windows x64
+# Matick Studio LM Cloud v1.2.0 — Vista previa Windows x64
 
-Este ZIP contiene **MatickStudioLM-v1.0.1-x64-Setup.exe** (instalador Windows) y un informe SHA-256. El instalador no necesita Python, Node, LM Studio ni Inno Setup en el PC de destino.
+Este ZIP contiene **MatickStudioLM-v1.2.0-x64-Setup.exe** (instalador Windows) y un informe SHA-256. El instalador no necesita instalar Python, Node, LM Studio ni Inno Setup en el PC de destino. **Este paquete incluye llama-server CPU x64, pero debes aportar tus modelos GGUF. La aceleración CUDA de la RTX 5060 no está incluida ni verificada; consulta docs/MOTOR_LOCAL_GGUF_V12.md.**
 
 ## Instalación
 
 1. Extrae el ZIP en Descargas.
-2. Verifica la integridad del instalador (opcional): `Get-FileHash .\MatickStudioLM-v1.0.1-x64-Setup.exe -Algorithm SHA256`.
-3. Ejecuta `MatickStudioLM-v1.0.1-x64-Setup.exe`, confirma el editor si Windows SmartScreen lo advierte. **No está firmado digitalmente**: verifica el repositorio y su SHA antes de ejecutarlo.
+2. Verifica la integridad del instalador (opcional): `Get-FileHash .\MatickStudioLM-v1.2.0-x64-Setup.exe -Algorithm SHA256`.
+3. Ejecuta `MatickStudioLM-v1.2.0-x64-Setup.exe`, confirma el editor si Windows SmartScreen lo advierte. Para ubicar la aplicación dentro de tu proyecto sin sobrescribir archivos previos, elige **`C:\IA\Matick Studio LM\App`** como carpeta de instalación; no selecciones directamente la raíz que ya contiene tus modelos y proyectos. **No está firmado digitalmente**: verifica el repositorio y su SHA antes de ejecutarlo.
 4. Se instala **solo para tu usuario**, por defecto en `%LOCALAPPDATA%\Programs\Matick Studio LM Cloud`. No requiere permisos de administrador.
 5. Abre **Matick Studio LM Cloud** desde Inicio. La ventana DirectX 12 se muestra primero; si falla DirectX pasa a modo seguro GDI. El backend ligero Python 3.12.10 se inicia automáticamente por el propio programa.
 6. El navegador `http://127.0.0.1:8787/app` muestra Matick Work. Para chatear con un modelo debes configurar un proveedor real de inferencia; el instalador no contiene pesos ni descarga modelos.

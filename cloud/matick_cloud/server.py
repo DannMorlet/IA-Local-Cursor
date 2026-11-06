@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import __version__
 from .provider import OpenAICompatibleProvider, ProviderResponseError, ProviderUnavailable
+from .local_engine import LocalLlamaEngine
 from .models import RestV1Bridge, ModelState, ModelOffline, ModelError, valid_params, PARAMS, LOAD_PARAMS, valid_model_id
 from .tasks import TaskStore
 
@@ -119,14 +120,27 @@ class MatickHTTPServer(ThreadingHTTPServer):
         tokens: dict[str, str],
         provider: OpenAICompatibleProvider | None = None,
         rest: RestV1Bridge | None = None,
+        local_engine: LocalLlamaEngine | None = None,
     ) -> None:
         self.store = store
         self.tokens = tokens.copy()
         self.provider = provider if provider is not None else OpenAICompatibleProvider.from_env()
         self.rest = rest if rest is not None else RestV1Bridge.from_env()
+        self.local = local_engine if local_engine is not None else LocalLlamaEngine.from_env()
+        # Un proveedor REST explícito conserva prioridad salvo selección local.
+        self.use_local = self.local.enabled and (
+            os.getenv("MATICK_INFERENCE_BACKEND", "auto").lower() == "local"
+            or not (self.rest.configured or self.provider.configured)
+        )
         self.model_state = ModelState(store.path)
         self.tasks = TaskStore(store.path)
         super().__init__(address, MatickHandler)
+
+    def server_close(self) -> None:
+        try:
+            self.local.close()  # Detener solo el hijo que creó Matick.
+        finally:
+            super().server_close()
 
 
 class MatickHandler(BaseHTTPRequestHandler):
@@ -220,12 +234,22 @@ class MatickHandler(BaseHTTPRequestHandler):
         if route.path == "/v1/capabilities":
             self._respond(HTTPStatus.OK, {
                 "actor": actor,
-                "chat": {"configured": self.server.provider.configured or self.server.rest.configured},
-                "rest_v1": {"configured": self.server.rest.configured, "models_managed": True},
+                "chat": {"configured": self.server.local.configured if self.server.use_local
+                         else (self.server.provider.configured or self.server.rest.configured)},
+                "local_inference": {
+                    "selected": self.server.use_local,
+                    "configured": self.server.local.configured,
+                    "reason": self.server.local.reason if self.server.use_local else "",
+                    "backend": "llama.cpp",
+                },
+                "rest_v1": {"configured": self.server.rest.configured, "models_managed": self.server.rest.configured},
                 "events": {"configured": True},
                 "mcp": {"configured": False, "reason": "ToolHub funciona separado del servidor cloud"},
                 "devices": {"configured": False},
-                "cloud_model": self.server.model_state.get()["model"] or (self.server.provider.model if self.server.provider.configured else None),
+                "cloud_model": self.server.model_state.get()["model"] or (
+                    self.server.provider.model
+                    if not self.server.use_local and self.server.provider.configured else None
+                ),
             })
             return
 
@@ -250,6 +274,16 @@ class MatickHandler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.OK, self.server.model_state.get())
             return
         if route.path == "/v1/models":
+            if self.server.use_local:
+                self._respond(HTTPStatus.OK, {
+                    "models": self.server.local.models(),
+                    "connected": self.server.local.configured,
+                    "configured": self.server.local.configured,
+                    "provider": "llama.cpp-local",
+                    "reason": self.server.local.reason,
+                    "active": self.server.model_state.get(),
+                })
+                return
             if not self.server.rest.configured:
                 # Expose the configured alternative model so the chat UI can
                 # select it. This is configuration metadata, NOT a live probe.
@@ -339,15 +373,20 @@ class MatickHandler(BaseHTTPRequestHandler):
                 elif route == "/v1/models/load":
                     model = valid_model_id(data.get("model"))
                     params = valid_params(data.get("params", {}), LOAD_PARAMS)
-                    loaded = self.server.rest.load(model, params)
+                    loaded = (self.server.local.load(model, params) if self.server.use_local
+                              else self.server.rest.load(model, params))
                     self.server.model_state.set({"model": model, "load": params})
                     self._respond(HTTPStatus.OK, {"loaded": loaded, "active": self.server.model_state.get()})
                 elif route == "/v1/models/unload":
-                    result = self.server.rest.unload(data.get("instance_id"))
+                    result = (self.server.local.unload(data.get("instance_id"))
+                              if self.server.use_local else
+                              self.server.rest.unload(data.get("instance_id")))
                     if data.get("model") == self.server.model_state.get()["model"]:
                         self.server.model_state.set({"model": None})
                     self._respond(HTTPStatus.OK, {"unloaded": result})
                 else:
+                    if self.server.use_local:
+                        raise PermissionError("Los archivos GGUF locales se importan manualmente; no hay descargas automáticas")
                     result = self.server.rest.download(data.get("model"), data.get("quantization"))
                     self._respond(HTTPStatus.ACCEPTED, {"download": result})
             except PermissionError as exc:
@@ -386,7 +425,14 @@ class MatickHandler(BaseHTTPRequestHandler):
                 params = data.get("parameters", state["generation"])
                 stateful = data.get("stateful", False)
                 previous = data.get("previous_response_id")
-                if self.server.rest.configured:
+                if self.server.use_local:
+                    if not model:
+                        raise ProviderUnavailable("Selecciona un GGUF del catálogo de Matick")
+                    result = self.server.local.chat(
+                        model, messages, params, previous_response_id=previous,
+                        stateful=stateful
+                    )
+                elif self.server.rest.configured:
                     if not model:
                         raise ProviderUnavailable("Selecciona un modelo en /v1/models/settings")
                     result = self.server.rest.chat(

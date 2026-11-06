@@ -35,7 +35,7 @@ if ($LASTEXITCODE -ne 0) { throw 'No funciona el backend Python embebido.' }
 $items = Get-ChildItem -LiteralPath $dist -File -Recurse | Where-Object { $_.Name -ne 'manifest.json' }
 $manifest = [ordered]@{
     name = 'Matick Studio LM Cloud'
-    package_version = '1.0.1'
+    package_version = '1.2.0'
     architecture = 'windows-x64'
     python_runtime = "$pythonVersion (PSF License, archivos runtime/LICENSE.txt)"
     runtime_source = $url

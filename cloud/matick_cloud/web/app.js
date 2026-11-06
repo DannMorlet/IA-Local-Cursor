@@ -92,7 +92,9 @@ $("login-form").addEventListener("submit", async e=>{
     $("status").textContent="API autenticada";
     $("connected-dot").classList.add("connected");
     $("state-api").textContent="Conectado";
-    $("state-engine").textContent=capabilities.rest_v1?.configured?"REST v1 configurado":"No configurado";
+    $("state-engine").textContent=capabilities.local_inference?.selected ?
+      (capabilities.local_inference?.configured ? "llama.cpp local" : "Motor local pendiente") :
+      (capabilities.rest_v1?.configured?"REST v1 configurado":"No configurado");
     await Promise.all([refreshModels(),refreshTasks()]);
   } catch(err) {
     if(loginAttemptIsCurrent(requestId,state.loginRequestId,token,$("token-input").value.trim()))
@@ -114,6 +116,15 @@ async function refreshModels(){
     state.models=Array.isArray(inventory.models)?inventory.models:[];
     state.provider=inventory.provider||"";
     state.inventoryFresh=true;
+    const local=state.provider==="llama.cpp-local";
+    $("stateful-chat").checked = local ? false : $("stateful-chat").checked;
+    $("stateful-chat").disabled=local;
+    $("model-id").readOnly=local;
+    $("download-id").disabled=local;
+    $("download-model").disabled=local;
+    $("download-hint").textContent=local
+      ? "Motor local: añade archivos GGUF a la carpeta configurada; no descarga ni borra pesos."
+      : "Solo cuando el administrador habilite descargas grandes en el servidor.";
     const presentation=modelInventoryPresentation(inventory,settings);
     $("state-engine").textContent=presentation.engineStatus;
     $("model-count").textContent=state.models.length+" modelos";
@@ -122,6 +133,8 @@ async function refreshModels(){
     else clearModelSelection();
     setSavedSettings(settings);
     renderModels();
+    if(!state.models.length && inventory.reason)
+      empty($("model-list"), inventory.reason);
     return true;
   }catch(err){
     if(!inventoryRequestIsCurrent(requestId,state.inventoryRequestId,requestToken,state.token)) return false;
@@ -164,7 +177,8 @@ function selectModel(id, fromSettings=false) {
   $("model-chip").textContent=id;
   const row=state.models.find(m=>m.key===id);
   state.loadedInstances=(row && Array.isArray(row.loaded_instances))?row.loaded_instances:[];
-  $("home-model-chip").textContent=state.provider==="rest-v1" ?
+  $("home-model-chip").textContent=
+    ["rest-v1","llama.cpp-local"].includes(state.provider) ?
     (state.loadedInstances.length?id+" · Cargado":id+" · Falta cargar") :
     id+" · Inferencia por verificar";
   if(!fromSettings) renderModels();
@@ -189,7 +203,8 @@ function renderModels(){
     detail.textContent=model.key+" · "+(model.type||"llm")
       +(model.params_string?" · "+model.params_string:"")
       +(model.quantization?" · "+model.quantization:"")
-      +(model.max_context_length?" · "+model.max_context_length+" ctx":"")
+      +(Number.isFinite(model.size_bytes)?" · "+(model.size_bytes / 1073741824).toFixed(2)+" GiB en disco":"")
+      +(model.max_context_length?" · "+model.max_context_length+" tokens de contexto":"")
       +" · "+(model.source==="openai-compatible"?
         "Proveedor configurado; inferencia sin verificar":(instances?"Cargado":"No cargado"));
     btn.append(title,detail);btn.addEventListener("click",()=>selectModel(model.key));

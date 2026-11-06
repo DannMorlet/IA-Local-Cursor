@@ -2,7 +2,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$ExePath,
-    [Parameter(Mandatory = $true)][string]$OutputDir
+    [Parameter(Mandatory = $true)][string]$OutputDir,
+    [string]$LlamaRuntimeDir = ''
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -26,6 +27,7 @@ foreach ($relative in @(
     'cloud/matick_cloud/server.py',
     'cloud/matick_cloud/provider.py',
     'cloud/matick_cloud/models.py',
+    'cloud/matick_cloud/local_engine.py',
     'cloud/matick_cloud/tasks.py',
     'cloud/matick_cloud/web/index.html',
     'cloud/matick_cloud/web/style.css',
@@ -58,6 +60,21 @@ foreach ($relative in @(
 )) {
     Copy-LightFile $relative
 }
+# Motor CPU opcional, compilado por CI desde llama.cpp oficial. Solo se
+# incorporan ejecutable/DLL y licencia; nunca pesos ni CUDA ni archivos locales.
+if ($LlamaRuntimeDir) {
+    $src = (Resolve-Path -LiteralPath $LlamaRuntimeDir).Path
+    foreach ($required in @('llama-server.exe','LICENSE-llama.cpp.txt','BUILD-INFO.txt')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $src $required) -PathType Leaf)) {
+            throw "Falta archivo esencial del motor empaquetado: $required"
+        }
+    }
+    $engineTarget = Join-Path $target 'engine'
+    New-Item -ItemType Directory -Path $engineTarget | Out-Null
+    Get-ChildItem -LiteralPath $src -File |
+        Where-Object { $_.Extension -in @('.exe','.dll','.txt') } |
+        ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $engineTarget }
+}
 $forbidden = @('cuda','models','modelos','node_modules','.venv','weights','checkpoints','build','bin','obj')
 $bad = Get-ChildItem -LiteralPath $target -Directory -Recurse |
     Where-Object { $forbidden -contains $_.Name.ToLowerInvariant() }
@@ -65,7 +82,7 @@ if ($bad) { throw "Distribución contiene carpetas prohibidas" }
 $items = Get-ChildItem -LiteralPath $target -File -Recurse
 $manifest = [ordered]@{
     name = 'Matick Studio LM'
-    package_version = '1.0.1'
+    package_version = '1.2.0'
     independent_from_local_project = $true
     generated_utc = (Get-Date).ToUniversalTime().ToString('o')
     files = @($items | ForEach-Object {
