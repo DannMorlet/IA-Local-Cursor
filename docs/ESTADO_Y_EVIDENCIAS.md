@@ -1,41 +1,55 @@
 # Estado y evidencias — Matick Studio LM / Matick Codex
-**Fecha del registro:** 2026-11-11  
+**Fecha del registro:** 2026-11-11 (actualizado por Claude Code tras trabajar en la PC de Morlet)
 **Regla:** este registro diferencia conversación, documentación, prototipos y comprobaciones reales. Actualizarlo después de cada intervención con evidencia, no declaraciones vagas.
 
-| Componente | Estado conocido | Evidencia / límite |
+Niveles usados: **verificado en la PC** (se ejecutó en Matick Studio LM en marcha), **probado en aislamiento** (el módulo se ejecutó solo, fuera de la app), **sin hacer**.
+
+## Ya sirve — verificado en la PC de Morlet (2026-11-11)
+
+Entorno de las pruebas: Matick Studio LM en Windows 11, motor llama.cpp local, modelo Matick Gemma E2B con contexto 16384 en la RTX 5060, interfaz real manejada desde un navegador contra el servidor local. Sin créditos ni servicios de pago.
+
+| Función | Evidencia | Límite |
 | --- | --- | --- |
-| Guías para GPT Codex, Claude y Gemini | **Documentado en este repositorio** | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y briefing maestro en `main`. |
-| Supervisor (NPU), nombres y recursos aislados | **Especificado, no integrado** | `docs/SUPERVISOR_NPU.md`; no hay datos de inferencia real en Intel 225F. |
-| Modelo Qwen3-1.7B INT8 en NPU | **Candidato, no verificado** | Sin benchmark de tokens/s ni confirmación de backend efectivo. |
-| Modelo Qwen3-4B INT8 en NPU | **Alternativa, no verificada** | No hay latencia medida ni pruebas de operaciones/fallback. |
-| Autonomía de reparación Matick Codex | **Requisito; prototipo experimental en otro repo** | Laboratorio `Pruebas` [PR #6](https://github.com/DannMorlet/Pruebas/pull/6). Ninguna conexión a este repositorio está implicada. |
-| Memoria SQLite + pruebas mínimas | **Código experimental de laboratorio** | El PR #6 contiene implementación inicial. Comprobar estado del CI para el **commit concreto** antes de afirmar verde; no hay sandbox real para tests no confiables. |
-| Seguridad Windows, TPM, Defender, no malware | **Política documentada, no certificación de aislamiento** | Faltan pruebas de sandbox y revisión de seguridad de un ejecutor real. |
-| Selección Sol/Astra/alternativas con costos | **Política documentada** | No hay selector conectado a una API de pago ni autorización automática. |
-| Gemini CLI y «Gemini Argon 4» | **Guía documental `GEMINI.md`** | No hay modelo descargado/configurado por este cambio; revisar denominación, acceso y cuotas vigentes. |
-| Matick Live Local: ASR/LLM/TTS | **Diseño; no funciona aún como voz real** | No existe prueba en bocinas o micrófono de esta implementación; el PC no cuenta con micrófono según Morlet. |
-| Python 3.15 | **Versión discutida / CI de laboratorio** | El propio runtime NPU puede requerir Python separado; no instalado ni verificado aquí. |
-| Interfaz Windows Matick Studio LM | **Requisitos recuperados** | `main` contiene documentación, no un EXE funcional ni pruebas GUI. |
+| Opciones del modelo como botones de un clic en el chat | Una conversación guardada con «Opciones: A \| B \| C» y su lista debajo mostró tres botones; el clic envía la opción | El globo de la mascota recibe las mismas opciones, pero no se vio en la ventana nativa |
+| Barra de botones del cuadro de escribir que se acomoda sola | Vista con sus botones reales en la interfaz | — |
+| Memoria de conversación | Antes solo se enviaban 12 mensajes al modelo. Ahora hasta 400, con archivo permanente por conversación y recuerdo automático por turno. Con 46 mensajes recordó un código y un nombre dichos en el mensaje 1, con chat guardado y sin guardar | Recuperación por palabras, no un contexto de un millón; sin probar con modelos de 9B/35B ni tras compactar |
+| Velocidad con historial largo | Recuerdos y RAG van al final del prompt para reutilizar la caché de llama.cpp. De 2.8–4.9 s por turno a 1.4–2.8 s en la mayoría de los turnos, con más tokens de entrada | Dos turnos tardaron 4.6–4.8 s; generación 126–157 tokens/s frente a 158 |
+| Equipo de agentes visible en «En vivo» | Una delegación real mostró al agente principal y al subagente con su estado y su tarea | Solo con un subagente |
+| Honestidad en la delegación | Encontrado y corregido: el subagente devolvía una llamada en crudo y el principal inventaba el informe; un especialista ya no se delega a sí mismo | Tras el arreglo no se logró repetir una delegación real; la nota de «no se consultó a ningún subagente» no se vio dispararse |
 
-## Lo que sí se confirmó en esta intervención
+## Probado en aislamiento — falta verlo dentro de la app
 
-- La rama `main` de `DannMorlet/IA-Local-Cursor` se encontraba vacía al consultar GitHub al inicio.
-- Morlet **autorizó empezar a llenarla ahora** con lo conversado.
-- Se comenzaron a crear archivos de instrucciones y documentación **directamente en `main`** para que herramientas futuras lean el contexto del producto correcto.
-- El laboratorio `DannMorlet/Pruebas` y su PR #6 permanecen separados.
-- **No se corrió software en Windows, no se instalaron pesos de modelos, no se activaron servicios premium, no se cambió TPM ni Defender.**
+| Función | Evidencia | Límite |
+| --- | --- | --- |
+| Memoria de errores (briefing, sección F) | Módulo de incidencias: agrupa fallos e intentos, huella de error estable, entorno y fecha; solo marca resuelto con código de salida 0 del ejecutor; recuerda soluciones confirmadas dentro del mismo proyecto; dos errores iguales o tres fallos seguidos recomiendan diagnóstico | Ejecutado con datos de prueba; sin una tarea real de Matick Code |
+| Búsqueda en la memoria de conversación a gran escala | 1.8 ms sobre 1,202 mensajes | Datos sintéticos |
 
-## Próxima intervención técnica — solo bajo petición de Morlet
+## Reportado por GPT en sesiones anteriores — no comprobado de nuevo en esta intervención
 
-1. Auditar librerías y repositorios reales, elegir un módulo acotado para la primera implementación.
-2. Hacer prototipo **Supervisor (NPU)** con modelo/runtimes de NPU confirmados; registrar dónde se ejecutan realmente los operadores.
-3. Medir benchmarks de NPU con prompts y errores representativos; no inferir tokens/s por TOPS.
-4. Hacer ejecutor de pruebas con aislamiento para Matick Codex, historial persistente, autorización premium, rollback y logs.
-5. Integrar interfaz Windows y pruebas en dispositivo; reporte verificado.
-6. Cuando exista micrófono, avanzar con Matick Live Local por fases y medir latencia/interrupciones.
+| Componente | Lo que se reportó | Límite |
+| --- | --- | --- |
+| Supervisor (NPU) | Clasificador de incidencias con OpenVINO ejecutado en Intel AI Boost; consulta «Estado del Supervisor NPU» | Sin benchmark de tokens/s; falta registrar el dispositivo real en cada inferencia |
+| Qwen3-1.7B INT8 en NPU | Carga y generación desde el motor de Matick; botón «NPU» | Sin prueba visual del botón ni medición de velocidad |
+| Agente de programación local | Corrigió un archivo JavaScript y pasó cuatro pruebas independientes | Un solo caso; sin medición en proyectos de varios archivos |
+
+## Aún no sirve / sin hacer
+
+- **Ejecutor de pruebas con aislamiento real.** Matick Code valida rutas; eso no es un sandbox.
+- **Subagentes autónomos.** Un subagente es una sola consulta al modelo, por turnos: no usa herramientas por su cuenta ni trabaja a la vez que otros.
+- **Contexto de un millón de tokens.** No existe; lo que hay es recuperación de recuerdos.
+- **Trabajo unido a «En vivo» dentro del chat**, con la mascota que muestra, resume, pregunta con botones y aprende de las respuestas. Pedido por Morlet el 2026-11-11; pendiente para GPT.
+- **Selector de modelo con costo y aprobación.** Sin hacer.
+- **Matick Live Local (voz).** Sin hacer; la PC no tiene micrófono.
+- **Jugador de videojuegos en partida real** (Sudeki): sin tasa de éxito medida.
+- **Iniciador que recupere la ventana abierta** en lugar de fallar al abrir Matick dos veces.
+- **Equivalencia con modelos de pago en proyectos largos.** No hay evidencia.
+
+## Qué no se tocó
+
+No se modificó Windows, Defender, TPM ni el arranque. No se instaló software ni se usaron servicios de pago. Los cambios quedaron dentro de la carpeta de Matick Studio LM, con respaldo de los archivos editados salvo dos módulos, anotados en el registro local de cambios.
 
 ## Cómo registrar futuras verificaciones
 
-Para cada cambio: fecha, nombre de rama/commit, ruta, entorno real, comando, salida resumida, pruebas exitosas/fallidas, evidencia asociada, bloqueos y cómo revertirlo. Si se ejecuta solo en CI, **no** escribir «probado en la PC de Morlet». Si una prueba no se realizó, declararlo.
+Para cada cambio: fecha, ruta, entorno real, comando, salida resumida, pruebas exitosas/fallidas, bloqueos y cómo revertirlo. Si se ejecuta solo en aislamiento o en CI, **no** escribir «probado en la PC de Morlet». Si una prueba no se realizó, declararlo.
 
 [Inicio](../README.md) · [Briefing maestro](BRIEFING_MAESTRO_MORLET_2026-11-11.md) · [Supervisor (NPU)](SUPERVISOR_NPU.md)
